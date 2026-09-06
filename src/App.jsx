@@ -10,9 +10,10 @@ import LifeSavingRulesSection from './components/LifeSavingRulesSection';
 import Footer from './components/Footer';
 import LoginModal from './components/LoginModal';
 import InteractiveAiDemoModal from './components/InteractiveAiDemoModal';
+import OrganizationPortal from './components/orgPortal/OrganizationPortal';
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [demoModalOpen, setDemoModalOpen] = useState(false);
 
@@ -126,9 +127,17 @@ function AppContent() {
     }
   };
 
-  // Always render the main website (no post-login redirect to platform)
+  // IF AUTHENTICATED: RENDER THE PROFESSIONAL ENTERPRISE ORGANIZATION PORTAL
+  if (isAuthenticated) {
+    return (
+      <OrganizationPortal 
+        user={user} 
+        onLogout={logout} 
+      />
+    );
+  }
 
-  // IF NOT AUTHENTICATED: RENDER COMPLETE PUBLIC LANDING PAGE (UNTOUCHED)
+  // IF NOT AUTHENTICATED: RENDER COMPLETE PUBLIC LANDING PAGE (STRICTLY UNTOUCHED)
   return (
     <div className="min-h-screen bg-[#070709] text-slate-100 transition-colors duration-300 font-sans selection:bg-amber-500 selection:text-slate-950">
       
