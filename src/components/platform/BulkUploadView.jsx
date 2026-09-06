@@ -10,7 +10,12 @@ import {
   Check, 
   ArrowRight,
   RefreshCw,
-  FileText
+  FileText,
+  Clock,
+  Sparkles,
+  Layers,
+  Database,
+  Cpu
 } from 'lucide-react';
 
 export default function BulkUploadView({ onSelectReport, onOpenAllReports }) {
@@ -18,6 +23,7 @@ export default function BulkUploadView({ onSelectReport, onOpenAllReports }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Sample batch ingestion records
   const sampleBatchResults = [
@@ -79,7 +85,28 @@ export default function BulkUploadView({ onSelectReport, onOpenAllReports }) {
   ];
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadComplete(false);
+      setProgress(0);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
     if (file) {
       setSelectedFile(file);
       setUploadComplete(false);
@@ -110,131 +137,227 @@ export default function BulkUploadView({ onSelectReport, onOpenAllReports }) {
   };
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 select-none">
+    <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 select-none">
       
-      {/* Header */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
-            <UploadCloud className="w-5 h-5" />
-          </span>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-heading">
-            Bulk Historical Reports CSV Ingestion
-          </h2>
+      {/* 1. Header / Ingestion Pipeline Hero Card */}
+      <div className="p-6 sm:p-7 rounded-3xl bg-[#0C1222]/90 backdrop-blur-2xl border border-slate-800/90 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-md shadow-amber-500/10">
+              <UploadCloud className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight font-heading">
+                  Bulk Historical Reports Ingestion Pipeline
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-xs font-mono font-bold border border-blue-500/30">
+                  Batch NLP Engine
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-400 font-medium mt-0.5">
+                Upload historical Unsafe Act, Unsafe Condition, or Near-Miss CSV registries for automated batch SIF triage.
+              </p>
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-slate-500">
-          Upload bulk Unsafe Act, Unsafe Condition, or Near-Miss CSV records to run batch NLP SIF-precursor classification.
-        </p>
+
+        <div className="flex items-center gap-2 font-mono text-xs text-slate-400 bg-slate-900/80 px-3.5 py-2 rounded-xl border border-slate-800 shrink-0">
+          <Database className="w-3.5 h-3.5 text-amber-400" />
+          <span>Max file size: 50 MB (CSV, TSV)</span>
+        </div>
       </div>
 
-      {/* Drag & Drop Upload Card */}
-      <div className="p-8 rounded-2xl bg-white border-2 border-dashed border-slate-300 hover:border-blue-500 transition-colors text-center space-y-4 shadow-xs relative">
+      {/* 2. Visual Pipeline Flow Indicator */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 rounded-2xl bg-[#0C1222]/80 border border-slate-800/90 flex items-start gap-3.5">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-mono font-bold text-xs shrink-0">
+            01
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+              1. CSV Data Ingestion
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+              Auto-detects reference IDs, observation text, incident dates, and site locations.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-[#0C1222]/80 border border-slate-800/90 flex items-start gap-3.5">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-mono font-bold text-xs shrink-0">
+            02
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+              2. Batch NLP Parsing
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+              Concurrent extraction of energy vectors, mechanical forces, and physical barrier states.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-[#0C1222]/80 border border-slate-800/90 flex items-start gap-3.5">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-mono font-bold text-xs shrink-0">
+            03
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+              3. AI Precursor Triage
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+              Calibrated classification against the 20-25% SIF fatality precursor benchmark.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Drag & Drop Upload Zone */}
+      <div 
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`p-10 sm:p-12 rounded-3xl backdrop-blur-2xl transition-all duration-200 text-center space-y-5 relative border-2 border-dashed ${
+          isDragging
+            ? 'bg-[#0A1628] border-amber-400 shadow-2xl shadow-amber-500/20 scale-[1.01]'
+            : selectedFile
+            ? 'bg-[#0C1222]/95 border-amber-500/50 shadow-xl'
+            : 'bg-[#0C1222]/90 border-slate-700/80 hover:border-amber-500/60 shadow-xl'
+        }`}
+      >
         <input 
           type="file" 
           accept=".csv" 
           onChange={handleFileChange} 
-          className="absolute inset-0 opacity-0 cursor-pointer"
+          className="absolute inset-0 opacity-0 cursor-pointer z-10"
         />
 
-        <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
-          <FileSpreadsheet className="w-7 h-7" />
+        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto transition-transform duration-200 ${
+          selectedFile 
+            ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 scale-105 shadow-lg shadow-amber-500/15'
+            : 'bg-slate-900 border border-slate-700/80 text-amber-400 shadow-md'
+        }`}>
+          <FileSpreadsheet className="w-8 h-8" />
         </div>
 
-        <div className="space-y-1">
-          <h3 className="text-sm font-bold text-slate-900">
+        <div className="space-y-1.5 max-w-lg mx-auto">
+          <h3 className="text-base sm:text-lg font-bold text-white">
             {selectedFile ? selectedFile.name : 'Drag and drop your historical CSV file here'}
           </h3>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400 leading-relaxed">
             {selectedFile 
-              ? `${(selectedFile.size / 1024).toFixed(1)} KB • Ready for batch NLP evaluation` 
-              : 'or click to browse your computer (standard HSSE fields supported)'}
+              ? `${(selectedFile.size / 1024).toFixed(1)} KB • File loaded and validated for batch processing` 
+              : 'or click to browse from local computer (standard HSSE column headers auto-mapped)'}
           </p>
         </div>
 
-        <div className="pt-2 flex justify-center gap-3">
+        <div className="pt-2 flex justify-center gap-3 relative z-20">
           <button
             type="button"
             onClick={handleSimulateBatchAnalysis}
             disabled={isProcessing}
-            className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-sm cursor-pointer flex items-center gap-2"
+            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-slate-950 font-black text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/20 cursor-pointer flex items-center gap-2 hover:scale-[1.02] active:scale-98"
           >
-            {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-white" />}
-            <span>{isProcessing ? 'Processing Batch...' : 'Start Batch AI Analysis'}</span>
+            {isProcessing ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-slate-950" />
+                <span>Executing Batch Pipeline...</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 fill-slate-950" />
+                <span>Start Batch AI Analysis</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* 4. Batch Progress Bar */}
       {isProcessing && (
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2 animate-in fade-in">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-slate-800">Processing Observations with SafetyAI Pipeline...</span>
-            <span className="font-mono font-bold text-blue-600">{progress}%</span>
+        <div className="p-6 rounded-3xl bg-[#0C1222]/95 backdrop-blur-2xl border border-slate-800 shadow-xl space-y-3 animate-in fade-in">
+          <div className="flex justify-between items-center text-xs font-mono">
+            <span className="font-bold text-slate-200 flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span>Multi-Core NLP Extraction & SIF Precursor Classification...</span>
+            </span>
+            <span className="font-bold text-amber-400 font-mono text-sm">{progress}%</span>
           </div>
-          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+          <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
             <div 
-              className="bg-blue-600 h-full rounded-full transition-all duration-300" 
+              className="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 h-full rounded-full transition-all duration-300 shadow-xs shadow-amber-500/30" 
               style={{ width: `${progress}%` }} 
             />
           </div>
         </div>
       )}
 
-      {/* Batch Processing Results Summary */}
+      {/* 5. Batch Processing Results Summary */}
       {uploadComplete && (
-        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           
           {/* Summary Stat Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
-              <span className="text-xs text-slate-500 block">Total Ingested</span>
-              <strong className="text-2xl font-black text-slate-900 font-mono">150</strong>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-5 rounded-2xl bg-[#0C1222]/90 backdrop-blur-2xl border border-slate-800 shadow-xl space-y-1">
+              <span className="text-xs text-slate-400 font-mono uppercase tracking-wider block">Total Ingested</span>
+              <strong className="text-2xl sm:text-3xl font-black text-white font-mono">150</strong>
+              <span className="text-[11px] text-slate-500 font-mono block">100% Parsed Without Error</span>
             </div>
 
-            <div className="p-4 rounded-xl bg-white border border-amber-300 shadow-xs bg-amber-50/40">
-              <span className="text-xs text-amber-800 font-bold block">SIF Precursors Detected</span>
-              <strong className="text-2xl font-black text-amber-600 font-mono">36 (24.0%)</strong>
+            <div className="p-5 rounded-2xl bg-[#0C1222]/90 backdrop-blur-2xl border border-amber-500/40 shadow-xl shadow-amber-500/5 space-y-1">
+              <span className="text-xs text-amber-400 font-mono uppercase tracking-wider font-bold block">SIF Precursors</span>
+              <strong className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">36 (24.0%)</strong>
+              <span className="text-[11px] text-amber-300/80 font-mono block">Aligned with 20-25% Target</span>
             </div>
 
-            <div className="p-4 rounded-xl bg-white border border-blue-200 shadow-xs bg-blue-50/40">
-              <span className="text-xs text-blue-800 font-bold block">Non-SIF Observations</span>
-              <strong className="text-2xl font-black text-blue-600 font-mono">114 (76.0%)</strong>
+            <div className="p-5 rounded-2xl bg-[#0C1222]/90 backdrop-blur-2xl border border-emerald-500/40 shadow-xl shadow-emerald-500/5 space-y-1">
+              <span className="text-xs text-emerald-400 font-mono uppercase tracking-wider font-bold block">Non-SIF Observations</span>
+              <strong className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">114 (76.0%)</strong>
+              <span className="text-[11px] text-emerald-300/80 font-mono block">Low-Energy Routine Hazards</span>
             </div>
 
-            <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
-              <span className="text-xs text-slate-500 block">Execution Time</span>
-              <strong className="text-2xl font-black text-emerald-600 font-mono">1.8s</strong>
+            <div className="p-5 rounded-2xl bg-[#0C1222]/90 backdrop-blur-2xl border border-slate-800 shadow-xl space-y-1">
+              <span className="text-xs text-slate-400 font-mono uppercase tracking-wider block">Execution Time</span>
+              <strong className="text-2xl sm:text-3xl font-black text-blue-400 font-mono">1.8s</strong>
+              <span className="text-[11px] text-slate-500 font-mono block">Throughput: ~83.3 records/sec</span>
             </div>
           </div>
 
           {/* Table Preview of Ingested Batch */}
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 font-heading">
-                Batch Analysis Sample Preview (Click row to show full dossier)
-              </h3>
+          <div className="p-6 sm:p-7 rounded-3xl bg-[#0C1222]/90 backdrop-blur-2xl border border-slate-800/90 shadow-xl space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-white font-heading">
+                  Batch Analysis Sample Preview
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Click any row to display the full explainable AI diagnostic dossier.
+                </p>
+              </div>
+
               <button
                 onClick={onOpenAllReports}
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1.5 cursor-pointer bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-800 hover:border-amber-500/40 transition-all self-start sm:self-auto"
               >
-                <span>View All In Ledger</span>
+                <span>View All In Historical Registry</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-2xl border border-slate-800/80">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-y border-slate-200 text-slate-600 font-mono text-[11px] uppercase tracking-wider">
-                    <th className="p-3">Reference</th>
-                    <th className="p-3">Category</th>
-                    <th className="p-3 w-80">Free-Text Observation</th>
-                    <th className="p-3">AI SIF Verdict</th>
-                    <th className="p-3">Confidence</th>
-                    <th className="p-3 text-right">Action</th>
+                  <tr className="bg-slate-950/90 border-b border-slate-800 text-slate-400 font-mono text-[11px] uppercase tracking-wider">
+                    <th className="p-3.5">Reference & Date</th>
+                    <th className="p-3.5">Category</th>
+                    <th className="p-3.5 w-80">Free-Text Observation</th>
+                    <th className="p-3.5">AI SIF Verdict</th>
+                    <th className="p-3.5">Confidence</th>
+                    <th className="p-3.5 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-800">
+                <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {sampleBatchResults.map((item) => (
                     <tr
                       key={item.id}
@@ -248,38 +371,49 @@ export default function BulkUploadView({ onSelectReport, onOpenAllReports }) {
                         sif_precursor_assessment: item.isSIF ? 'YES' : 'NO',
                         identified_hazard: item.hazard
                       })}
-                      className="hover:bg-blue-50/50 transition-colors cursor-pointer group"
+                      className="hover:bg-slate-800/50 transition-colors cursor-pointer group"
                     >
-                      <td className="p-3 font-mono font-bold text-blue-600 group-hover:underline">
-                        {item.ref}
+                      <td className="p-3.5 font-mono">
+                        <div className="font-bold text-amber-400 group-hover:underline">
+                          {item.ref}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {item.date}
+                        </div>
                       </td>
-                      <td className="p-3">
-                        <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono font-semibold">
-                          {item.type}
+
+                      <td className="p-3.5">
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 text-[10px] font-mono font-semibold border border-slate-800">
+                          {item.type.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="p-3 max-w-sm">
-                        <p className="line-clamp-2 text-slate-600 leading-relaxed">
+
+                      <td className="p-3.5 max-w-sm">
+                        <p className="line-clamp-2 text-slate-300 leading-relaxed font-medium">
                           {item.desc}
                         </p>
                       </td>
-                      <td className="p-3">
+
+                      <td className="p-3.5">
                         {item.isSIF ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black text-[10px] border border-amber-300">
-                            <ShieldAlert className="w-3 h-3 text-amber-600" />
-                            SIF POTENTIAL
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-black text-[10px] border border-amber-500/40">
+                            <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                            <span>SIF POTENTIAL</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold text-[10px] border border-slate-200">
-                            NON-SIF
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] border border-emerald-500/40">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>NON-SIF</span>
                           </span>
                         )}
                       </td>
-                      <td className="p-3 font-mono font-bold text-slate-700">
+
+                      <td className="p-3.5 font-mono font-bold text-slate-300">
                         {item.conf}%
                       </td>
-                      <td className="p-3 text-right">
-                        <button className="px-3 py-1 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white font-bold text-[11px] transition-all cursor-pointer">
+
+                      <td className="p-3.5 text-right">
+                        <button className="px-3.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-400 text-amber-400 hover:text-slate-950 font-bold text-[11px] border border-amber-500/30 transition-all cursor-pointer">
                           Inspect →
                         </button>
                       </td>

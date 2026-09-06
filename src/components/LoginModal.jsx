@@ -131,7 +131,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                 Login Successful
               </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 font-mono">
-                Authenticated successfully. Redirecting to main website...
+                Login successful. Redirecting to your Safety Intelligence dashboard...
               </p>
             </div>
           ) : (

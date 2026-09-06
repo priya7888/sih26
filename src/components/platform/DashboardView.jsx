@@ -237,34 +237,34 @@ export default function DashboardView({
   if (loading) {
     return (
       <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-32 flex flex-col items-center justify-center space-y-4 select-none">
-        <div className="w-14 h-14 border-4 border-blue-500/30 border-t-blue-600 rounded-full animate-spin shadow-lg" />
-        <p className="text-lg text-slate-800 font-bold tracking-tight">Syncing Real-Time Safety Intelligence...</p>
-        <p className="text-xs text-slate-500 font-mono">Oil India Limited • Safety Intelligence Engine</p>
+        <div className="w-14 h-14 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin shadow-lg shadow-amber-500/20" />
+        <p className="text-lg text-white font-bold tracking-tight font-heading">Syncing Real-Time Safety Intelligence...</p>
+        <p className="text-xs text-slate-400 font-mono">Oil India Limited • Safety Intelligence Engine</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 select-none">
+    <div className="w-full max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8 select-none text-slate-100">
       
       {/* ==================================================================== */}
       {/* 1. SAFETY SYMBOLS ROW (Revealed when clicking arrow on Dashboard)    */}
       {/* ==================================================================== */}
       {showSymbols && (
-        <div className="p-6 rounded-3xl bg-white/80 backdrop-blur-2xl border border-blue-200/70 shadow-[0_12px_40px_-10px_rgba(37,99,235,0.08)] transition-all duration-300 animate-in fade-in slide-in-from-top-4">
-          <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100/80">
+        <div className="p-6 rounded-3xl bg-[#0A0F1D]/90 backdrop-blur-2xl border border-slate-800 shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-800">
             <div className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse shadow-sm shadow-blue-500/50" />
-              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight font-heading">
+              <span className="w-3 h-3 rounded-full bg-amber-400 animate-pulse shadow-sm shadow-amber-400/50" />
+              <h2 className="text-base sm:text-lg font-black text-white tracking-tight font-heading">
                 Industrial Safety Intelligence Symbols (5 Active Today)
               </h2>
-              <span className="hidden sm:inline-flex text-xs text-slate-500 font-medium">
+              <span className="hidden sm:inline-flex text-xs text-slate-400 font-medium">
                 • Click any symbol to filter safety intelligence reports
               </span>
             </div>
             <button
               onClick={() => setShowSymbols(false)}
-              className="text-xs text-slate-400 hover:text-slate-800 font-bold px-3 py-1.5 rounded-xl hover:bg-slate-100/80 transition-colors cursor-pointer"
+              className="text-xs text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
             >
               Hide Symbols ✕
             </button>
@@ -282,26 +282,26 @@ export default function DashboardView({
                   onClick={() => setSelectedFilter(selectedFilter === sym.filter ? 'ALL' : sym.filter)}
                   className={`p-4 rounded-2xl border transition-all duration-200 text-left flex items-start gap-3.5 cursor-pointer group relative overflow-hidden ${
                     isSelected
-                      ? 'bg-blue-50/90 border-blue-500/80 shadow-md ring-2 ring-blue-500/20 scale-[1.02]'
-                      : 'bg-white/70 hover:bg-white border-slate-200/80 hover:border-slate-300 shadow-xs hover:shadow-md hover:scale-[1.01]'
+                      ? 'bg-amber-500/15 border-amber-400 shadow-md ring-2 ring-amber-400/20 scale-[1.02]'
+                      : 'bg-slate-900/60 hover:bg-slate-900 border-slate-800 hover:border-slate-700 shadow-xs hover:scale-[1.01]'
                   }`}
                 >
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${sym.gradient} text-white flex items-center justify-center shrink-0 shadow-md shadow-slate-300/40 group-hover:scale-110 transition-transform`}>
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${sym.gradient} text-white flex items-center justify-center shrink-0 shadow-md shadow-slate-950/40 group-hover:scale-110 transition-transform`}>
                     <Icon className="w-6 h-6 stroke-[2.2]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-black text-slate-900 truncate">
+                      <span className="text-xs font-black text-white truncate">
                         {sym.name}
                       </span>
-                      <span className="text-xs font-mono font-black px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-800 border border-slate-200/80 shrink-0">
+                      <span className="text-xs font-mono font-black px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-200 border border-slate-700 shrink-0">
                         {sym.count}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 font-medium truncate mt-1">
+                    <p className="text-[11px] text-slate-400 font-medium truncate mt-1">
                       {sym.desc}
                     </p>
-                    <span className="inline-block mt-2 text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/60">
+                    <span className="inline-block mt-2 text-[10px] font-mono font-bold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
                       {sym.tag}
                     </span>
                   </div>
@@ -320,70 +320,70 @@ export default function DashboardView({
         {/* Card 1: Total Reports Today */}
         <div 
           onClick={() => setSelectedFilter('ALL')}
-          className={`p-6 sm:p-7 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-200 cursor-pointer hover:shadow-xl hover:scale-[1.01] group ${
-            selectedFilter === 'ALL' ? 'ring-2 ring-blue-500/40 border-blue-200' : ''
+          className={`p-6 sm:p-7 rounded-3xl bg-[#0C1222]/90 backdrop-blur-xl border border-slate-800/90 shadow-xl transition-all duration-200 cursor-pointer hover:shadow-2xl hover:border-blue-500/50 hover:scale-[1.01] group ${
+            selectedFilter === 'ALL' ? 'ring-2 ring-blue-500/40 border-blue-500/50' : ''
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500 font-sans">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-400 font-sans">
               Total Reports Today
             </span>
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100/80 group-hover:scale-110 transition-transform shadow-2xs">
+            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform shadow-2xs">
               <FileText className="w-5 h-5 stroke-[2.2]" />
             </div>
           </div>
           
           <div className="mt-4 flex items-baseline gap-3">
-            <span className="text-5xl font-black text-slate-900 font-mono tracking-tight">
+            <span className="text-5xl font-black text-white font-mono tracking-tight">
               {totalReports}
             </span>
-            <span className="text-xs font-mono font-extrabold text-blue-700 bg-blue-50/90 px-3 py-1 rounded-full border border-blue-200 shadow-2xs">
+            <span className="text-xs font-mono font-extrabold text-blue-300 bg-blue-500/15 px-3 py-1 rounded-full border border-blue-500/30 shadow-2xs">
               Sept 6, 2026
             </span>
           </div>
 
-          <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-600">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>100% processed by AI safety intelligence engine</span>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-mono">
+          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
             <span>Oil India Limited</span>
-            <span className="text-blue-600 font-bold group-hover:underline">View All →</span>
+            <span className="text-blue-400 font-bold group-hover:underline">View All →</span>
           </div>
         </div>
 
         {/* Card 2: Potential SIF Precursors */}
         <div 
           onClick={() => setSelectedFilter(selectedFilter === 'SIF' ? 'ALL' : 'SIF')}
-          className={`p-6 sm:p-7 rounded-3xl bg-white/80 backdrop-blur-2xl border border-amber-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-200 cursor-pointer hover:shadow-xl hover:scale-[1.01] group ${
-            selectedFilter === 'SIF' ? 'ring-2 ring-amber-500/50 bg-amber-50/40' : ''
+          className={`p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-amber-950/25 via-[#0D1424]/90 to-[#0A0F1D]/90 backdrop-blur-xl border border-amber-500/35 shadow-xl transition-all duration-200 cursor-pointer hover:shadow-2xl hover:border-amber-400/70 hover:scale-[1.01] group ${
+            selectedFilter === 'SIF' ? 'ring-2 ring-amber-500/50 border-amber-400/80 bg-amber-950/30' : ''
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-amber-700 font-sans">
+            <span className="text-xs font-black uppercase tracking-wider text-amber-400 font-sans">
               Potential SIF Precursors
             </span>
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200 group-hover:scale-110 transition-transform shadow-2xs">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 group-hover:scale-110 transition-transform shadow-2xs">
               <AlertTriangle className="w-5 h-5 stroke-[2.5]" />
             </div>
           </div>
 
           <div className="mt-4 flex items-baseline gap-3">
-            <span className="text-5xl font-black text-amber-600 font-mono tracking-tight">
+            <span className="text-5xl font-black text-amber-400 font-mono tracking-tight drop-shadow-sm">
               {sifCount}
             </span>
-            <span className="text-xs font-mono font-extrabold text-amber-800 bg-amber-100/90 px-3 py-1 rounded-full border border-amber-300 shadow-2xs">
+            <span className="text-xs font-mono font-extrabold text-amber-300 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-500/30 shadow-2xs">
               {sifPct}% High Energy
             </span>
           </div>
 
-          <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-700">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+          <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0 shadow-sm shadow-amber-400/50" />
             <span>Critical fatality risk: drop zone, arc flash, open void, forklift</span>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-amber-100/80 flex items-center justify-between text-xs text-amber-700 font-mono">
+          <div className="mt-4 pt-3 border-t border-amber-500/20 flex items-center justify-between text-xs text-amber-400 font-mono">
             <span>4 High-Energy Vectors</span>
             <span className="font-bold group-hover:underline">Filter SIF →</span>
           </div>
@@ -392,34 +392,34 @@ export default function DashboardView({
         {/* Card 3: Non-SIF Observations */}
         <div 
           onClick={() => setSelectedFilter(selectedFilter === 'NON_SIF' ? 'ALL' : 'NON_SIF')}
-          className={`p-6 sm:p-7 rounded-3xl bg-white/80 backdrop-blur-2xl border border-emerald-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-200 cursor-pointer hover:shadow-xl hover:scale-[1.01] group ${
-            selectedFilter === 'NON_SIF' ? 'ring-2 ring-emerald-500/50 bg-emerald-50/40' : ''
+          className={`p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-emerald-950/25 via-[#0D1424]/90 to-[#0A0F1D]/90 backdrop-blur-xl border border-emerald-500/35 shadow-xl transition-all duration-200 cursor-pointer hover:shadow-2xl hover:border-emerald-400/70 hover:scale-[1.01] group ${
+            selectedFilter === 'NON_SIF' ? 'ring-2 ring-emerald-500/50 border-emerald-400/80 bg-emerald-950/30' : ''
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-700 font-sans">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-400 font-sans">
               Non-SIF Observations
             </span>
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200 group-hover:scale-110 transition-transform shadow-2xs">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20 group-hover:scale-110 transition-transform shadow-2xs">
               <CheckCircle className="w-5 h-5 stroke-[2.2]" />
             </div>
           </div>
 
           <div className="mt-4 flex items-baseline gap-3">
-            <span className="text-5xl font-black text-emerald-600 font-mono tracking-tight">
+            <span className="text-5xl font-black text-emerald-400 font-mono tracking-tight drop-shadow-sm">
               {nonSifCount}
             </span>
-            <span className="text-xs font-mono font-extrabold text-emerald-800 bg-emerald-100/90 px-3 py-1 rounded-full border border-emerald-300 shadow-2xs">
+            <span className="text-xs font-mono font-extrabold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-500/30 shadow-2xs">
               {nonSifPct}% Contained
             </span>
           </div>
 
-          <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-700">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div className="mt-3.5 flex items-center gap-2 text-xs font-semibold text-slate-300">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>Chemical drum drip; secondary containment bund 100% intact</span>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-emerald-100/80 flex items-center justify-between text-xs text-emerald-700 font-mono">
+          <div className="mt-4 pt-3 border-t border-emerald-500/20 flex items-center justify-between text-xs text-emerald-400 font-mono">
             <span>Effective Barrier In Place</span>
             <span className="font-bold group-hover:underline">Filter Safe →</span>
           </div>
@@ -434,18 +434,18 @@ export default function DashboardView({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Left Chart: SIF vs Non-SIF Precursor Distribution */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between space-y-6">
+        <div className="p-6 sm:p-8 rounded-3xl bg-[#0C1222]/90 backdrop-blur-2xl border border-slate-800/90 shadow-xl flex flex-col justify-between space-y-6">
           <div>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-heading">
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight font-heading">
                   SIF vs Non-SIF Precursor Distribution
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+                <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
                   Dynamic visual breakdown of today's 5 reports (Sept 6, 2026)
                 </p>
               </div>
-              <span className="text-xs font-mono font-black bg-slate-100 text-slate-800 px-3 py-1 rounded-xl border border-slate-200/80 shadow-2xs">
+              <span className="text-xs font-mono font-bold bg-slate-900/90 text-slate-300 px-3 py-1 rounded-xl border border-slate-800 shadow-2xs">
                 5 Reports Verified
               </span>
             </div>
@@ -463,7 +463,7 @@ export default function DashboardView({
                   cy="140"
                   r="95"
                   fill="transparent"
-                  stroke="#F1F5F9"
+                  stroke="#1E293B"
                   strokeWidth="32"
                 />
 
@@ -478,7 +478,7 @@ export default function DashboardView({
                   strokeDasharray={`${(4 / 5) * 596.9} 596.9`}
                   strokeDashoffset="0"
                   strokeLinecap="round"
-                  className="transition-all duration-300 cursor-pointer hover:stroke-amber-500"
+                  className="transition-all duration-300 cursor-pointer hover:stroke-amber-400"
                   onMouseEnter={() => setHoveredSlice('SIF')}
                   onMouseLeave={() => setHoveredSlice(null)}
                   onClick={() => setSelectedFilter(selectedFilter === 'SIF' ? 'ALL' : 'SIF')}
@@ -495,7 +495,7 @@ export default function DashboardView({
                   strokeDasharray={`${(1 / 5) * 596.9} 596.9`}
                   strokeDashoffset={`-${(4 / 5) * 596.9}`}
                   strokeLinecap="round"
-                  className="transition-all duration-300 cursor-pointer hover:stroke-emerald-600"
+                  className="transition-all duration-300 cursor-pointer hover:stroke-emerald-400"
                   onMouseEnter={() => setHoveredSlice('NON_SIF')}
                   onMouseLeave={() => setHoveredSlice(null)}
                   onClick={() => setSelectedFilter(selectedFilter === 'NON_SIF' ? 'ALL' : 'NON_SIF')}
@@ -504,15 +504,19 @@ export default function DashboardView({
 
               {/* Center Donut Readout */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="p-4 rounded-full bg-white/95 shadow-lg border border-white flex flex-col items-center justify-center w-36 h-36 backdrop-blur-md">
-                  <span className="text-4xl font-black font-mono text-slate-900 leading-none">
+                <div className="p-4 rounded-full bg-[#070A14]/95 shadow-2xl border border-slate-700/60 flex flex-col items-center justify-center w-36 h-36 backdrop-blur-md">
+                  <span className="text-4xl font-black font-mono text-white leading-none">
                     {hoveredSlice === 'SIF' ? '4' : hoveredSlice === 'NON_SIF' ? '1' : '5'}
                   </span>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mt-1.5 text-center px-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-1.5 text-center px-1">
                     {hoveredSlice === 'SIF' ? 'SIF Precursors' : hoveredSlice === 'NON_SIF' ? 'Non-SIF' : 'Total Reports'}
                   </span>
-                  <span className={`text-xs font-mono font-extrabold mt-1 px-2 py-0.5 rounded-full ${
-                    hoveredSlice === 'SIF' ? 'bg-amber-100 text-amber-800' : hoveredSlice === 'NON_SIF' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                  <span className={`text-xs font-mono font-extrabold mt-1 px-2.5 py-0.5 rounded-full border ${
+                    hoveredSlice === 'SIF' 
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
+                      : hoveredSlice === 'NON_SIF' 
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
+                      : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
                   }`}>
                     {hoveredSlice === 'SIF' ? '80.0%' : hoveredSlice === 'NON_SIF' ? '20.0%' : '100%'}
                   </span>
@@ -529,20 +533,20 @@ export default function DashboardView({
                 onClick={() => setSelectedFilter(selectedFilter === 'SIF' ? 'ALL' : 'SIF')}
                 className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
                   hoveredSlice === 'SIF' || selectedFilter === 'SIF'
-                    ? 'bg-amber-50/90 border-amber-300 shadow-md scale-[1.02] ring-2 ring-amber-400/20'
-                    : 'bg-white/70 border-slate-200/80 hover:bg-amber-50/50 hover:border-amber-200'
+                    ? 'bg-amber-950/40 border-amber-500/50 shadow-lg scale-[1.02] ring-2 ring-amber-500/20'
+                    : 'bg-slate-900/70 border-slate-800/80 hover:bg-slate-800/60 hover:border-amber-500/30'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="w-4 h-4 rounded-full bg-amber-500 shadow-sm shrink-0" />
+                  <span className="w-4 h-4 rounded-full bg-amber-400 shadow-sm shrink-0" />
                   <div>
-                    <div className="text-xs sm:text-sm font-black text-slate-900">Potential SIF Precursor</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Critical fatality potential</div>
+                    <div className="text-xs sm:text-sm font-black text-white">Potential SIF Precursor</div>
+                    <div className="text-[11px] text-slate-400 font-medium">Critical fatality potential</div>
                   </div>
                 </div>
                 <div className="text-right font-mono">
-                  <div className="text-base font-black text-amber-700">4</div>
-                  <div className="text-[11px] text-slate-400 font-semibold">80.0%</div>
+                  <div className="text-base font-black text-amber-400">4</div>
+                  <div className="text-[11px] text-slate-500 font-semibold">80.0%</div>
                 </div>
               </div>
 
@@ -553,32 +557,32 @@ export default function DashboardView({
                 onClick={() => setSelectedFilter(selectedFilter === 'NON_SIF' ? 'ALL' : 'NON_SIF')}
                 className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
                   hoveredSlice === 'NON_SIF' || selectedFilter === 'NON_SIF'
-                    ? 'bg-emerald-50/90 border-emerald-300 shadow-md scale-[1.02] ring-2 ring-emerald-400/20'
-                    : 'bg-white/70 border-slate-200/80 hover:bg-emerald-50/50 hover:border-emerald-200'
+                    ? 'bg-emerald-950/40 border-emerald-500/50 shadow-lg scale-[1.02] ring-2 ring-emerald-500/20'
+                    : 'bg-slate-900/70 border-slate-800/80 hover:bg-slate-800/60 hover:border-emerald-500/30'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="w-4 h-4 rounded-full bg-emerald-500 shadow-sm shrink-0" />
+                  <span className="w-4 h-4 rounded-full bg-emerald-400 shadow-sm shrink-0" />
                   <div>
-                    <div className="text-xs sm:text-sm font-black text-slate-900">Non-SIF Observation</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Contained / low energy</div>
+                    <div className="text-xs sm:text-sm font-black text-white">Non-SIF Observation</div>
+                    <div className="text-[11px] text-slate-400 font-medium">Contained / low energy</div>
                   </div>
                 </div>
                 <div className="text-right font-mono">
-                  <div className="text-base font-black text-emerald-700">1</div>
-                  <div className="text-[11px] text-slate-400 font-semibold">20.0%</div>
+                  <div className="text-base font-black text-emerald-400">1</div>
+                  <div className="text-[11px] text-slate-500 font-semibold">20.0%</div>
                 </div>
               </div>
             </div>
 
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
             <span>💡 Tip: Click slices or legend cards to filter report records below</span>
             {selectedFilter !== 'ALL' && (
               <button 
                 onClick={() => setSelectedFilter('ALL')}
-                className="font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                className="font-bold text-amber-400 hover:text-amber-300 hover:underline cursor-pointer"
               >
                 Reset Filter
               </button>
@@ -587,18 +591,18 @@ export default function DashboardView({
         </div>
 
         {/* Right Chart: Event Type & Hazard Classification */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between space-y-6">
+        <div className="p-6 sm:p-8 rounded-3xl bg-[#0C1222]/90 backdrop-blur-2xl border border-slate-800/90 shadow-xl flex flex-col justify-between space-y-6">
           <div>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-heading">
+                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight font-heading">
                   Event Type & Hazard Classification
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+                <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
                   Categorical breakdown across today's 5 verified incidents
                 </p>
               </div>
-              <span className="text-xs font-mono font-black bg-blue-50 text-blue-700 px-3 py-1 rounded-xl border border-blue-200/90 shadow-2xs">
+              <span className="text-xs font-mono font-bold bg-blue-950/60 text-blue-300 px-3 py-1 rounded-xl border border-blue-800/60 shadow-2xs">
                 100% Ingested
               </span>
             </div>
@@ -614,23 +618,23 @@ export default function DashboardView({
               onClick={() => setSelectedFilter(selectedFilter === 'UNSAFE_ACT' ? 'ALL' : 'UNSAFE_ACT')}
               className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
                 hoveredBar === 'UNSAFE_ACT' || selectedFilter === 'UNSAFE_ACT'
-                  ? 'bg-blue-50/90 border-blue-300 shadow-sm ring-2 ring-blue-400/20'
-                  : 'bg-white/60 border-slate-200/70 hover:bg-slate-50/90'
+                  ? 'bg-blue-950/40 border-blue-500/50 shadow-md ring-2 ring-blue-500/20'
+                  : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-800/60'
               }`}
             >
               <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-2">
-                <span className="text-slate-900 font-black">Unsafe Act (2 reports)</span>
-                <span className="font-mono text-blue-700 font-extrabold">40.0%</span>
+                <span className="text-white font-black">Unsafe Act (2 reports)</span>
+                <span className="font-mono text-blue-400 font-extrabold">40.0%</span>
               </div>
-              <div className="w-full h-4 bg-slate-100/90 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+              <div className="w-full h-3.5 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500 shadow-xs"
+                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500 shadow-xs"
                   style={{ width: '40%' }}
                 />
               </div>
-              <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
+              <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
                 <span>Electrical arc flash (no LOTO) & Forklift reversing blind corner</span>
-                <span className="font-mono font-bold text-slate-700">2 / 5</span>
+                <span className="font-mono font-bold text-slate-300">2 / 5</span>
               </div>
             </div>
 
@@ -641,23 +645,23 @@ export default function DashboardView({
               onClick={() => setSelectedFilter(selectedFilter === 'UNSAFE_CONDITION' ? 'ALL' : 'UNSAFE_CONDITION')}
               className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
                 hoveredBar === 'UNSAFE_CONDITION' || selectedFilter === 'UNSAFE_CONDITION'
-                  ? 'bg-amber-50/90 border-amber-300 shadow-sm ring-2 ring-amber-400/20'
-                  : 'bg-white/60 border-slate-200/70 hover:bg-slate-50/90'
+                  ? 'bg-amber-950/40 border-amber-500/50 shadow-md ring-2 ring-amber-500/20'
+                  : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-800/60'
               }`}
             >
               <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-2">
-                <span className="text-slate-900 font-black">Unsafe Condition (2 reports)</span>
-                <span className="font-mono text-amber-700 font-extrabold">40.0%</span>
+                <span className="text-white font-black">Unsafe Condition (2 reports)</span>
+                <span className="font-mono text-amber-400 font-extrabold">40.0%</span>
               </div>
-              <div className="w-full h-4 bg-slate-100/90 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+              <div className="w-full h-3.5 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
                 <div 
-                  className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500 shadow-xs"
+                  className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500 shadow-xs"
                   style={{ width: '40%' }}
                 />
               </div>
-              <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
+              <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
                 <span>Level 3 walkway open void & Chemical drum slow drip</span>
-                <span className="font-mono font-bold text-slate-700">2 / 5</span>
+                <span className="font-mono font-bold text-slate-300">2 / 5</span>
               </div>
             </div>
 
@@ -668,33 +672,33 @@ export default function DashboardView({
               onClick={() => setSelectedFilter(selectedFilter === 'NEAR_MISS' ? 'ALL' : 'NEAR_MISS')}
               className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
                 hoveredBar === 'NEAR_MISS' || selectedFilter === 'NEAR_MISS'
-                  ? 'bg-purple-50/90 border-purple-300 shadow-sm ring-2 ring-purple-400/20'
-                  : 'bg-white/60 border-slate-200/70 hover:bg-slate-50/90'
+                  ? 'bg-purple-950/40 border-purple-500/50 shadow-md ring-2 ring-purple-500/20'
+                  : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-800/60'
               }`}
             >
               <div className="flex items-center justify-between text-xs sm:text-sm font-bold mb-2">
-                <span className="text-slate-900 font-black">Near-Miss (1 report)</span>
-                <span className="font-mono text-purple-700 font-extrabold">20.0%</span>
+                <span className="text-white font-black">Near-Miss (1 report)</span>
+                <span className="font-mono text-purple-400 font-extrabold">20.0%</span>
               </div>
-              <div className="w-full h-4 bg-slate-100/90 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+              <div className="w-full h-3.5 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
                 <div 
-                  className="h-full bg-gradient-to-r from-purple-500 to-pink-600 rounded-full transition-all duration-500 shadow-xs"
+                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500 shadow-xs"
                   style={{ width: '20%' }}
                 />
               </div>
-              <div className="mt-2 text-xs text-slate-500 flex items-center justify-between">
+              <div className="mt-2 text-xs text-slate-400 flex items-center justify-between">
                 <span>Dropped 4" steel drilling flange from 18m rig floor</span>
-                <span className="font-mono font-bold text-slate-700">1 / 5</span>
+                <span className="font-mono font-bold text-slate-300">1 / 5</span>
               </div>
             </div>
 
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
             <span>📊 Classified with NLP hazard extraction & energy vector parsing</span>
             <button 
               onClick={onOpenAIAnalysis}
-              className="font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center gap-1.5"
+              className="font-bold text-amber-400 hover:text-amber-300 hover:underline cursor-pointer flex items-center gap-1.5"
             >
               <span>Explore AI Model Logic</span>
               <ArrowRight className="w-4 h-4" />
@@ -708,20 +712,20 @@ export default function DashboardView({
       {/* 4. REAL DATABASE REPORTS TABLE & LIVE SEARCH TOOLBAR                  */}
       {/* (Only today's 5 records with interactive filtering and live search)  */}
       {/* ==================================================================== */}
-      <div className="rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 space-y-6">
+      <div className="rounded-3xl bg-[#0C1222]/90 backdrop-blur-2xl border border-slate-800/90 shadow-xl p-6 sm:p-8 space-y-6">
         
         {/* Header with Title and Search/Filter Controls */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-heading">
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight font-heading">
                 SafetyAI Recommendations & Today's 5 Reports
               </h3>
-              <span className="px-3 py-1 rounded-full text-xs font-mono font-black bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs">
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-blue-950/60 text-blue-300 border border-blue-800/60 shadow-2xs">
                 {filteredReports.length} of {allReportsToday.length} Displayed
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+            <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
               Real-time safety observations submitted today for Oil India Limited (No fake or synthetic data)
             </p>
           </div>
@@ -736,13 +740,13 @@ export default function DashboardView({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search hazard, location, energy..."
-                className="w-full pl-10 pr-9 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 border border-slate-200/90 text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium"
+                className="w-full pl-10 pr-9 py-2 rounded-xl text-xs sm:text-sm bg-slate-950/90 border border-slate-800 text-white placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all font-medium"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -764,8 +768,8 @@ export default function DashboardView({
                   onClick={() => setSelectedFilter(item.key)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer ${
                     selectedFilter === item.key
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      ? 'bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/20'
+                      : 'bg-slate-900/80 text-slate-400 border border-slate-800 hover:bg-slate-800 hover:text-slate-200'
                   }`}
                 >
                   {item.label}
@@ -778,12 +782,12 @@ export default function DashboardView({
         {/* 5 Real Reports Cards List */}
         <div className="space-y-4">
           {filteredReports.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3">
+            <div className="p-12 text-center rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
               <Info className="w-8 h-8 text-slate-400 mx-auto" />
-              <p className="text-base font-bold text-slate-800">No reports matched your search / filter criteria.</p>
+              <p className="text-base font-bold text-slate-200">No reports matched your search / filter criteria.</p>
               <button
                 onClick={() => { setSelectedFilter('ALL'); setSearchQuery(''); }}
-                className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                className="text-xs font-bold text-amber-400 hover:underline cursor-pointer"
               >
                 Clear all filters and search
               </button>
@@ -797,8 +801,8 @@ export default function DashboardView({
                   key={report.id}
                   className={`p-5 sm:p-6 rounded-2xl border transition-all duration-200 flex flex-col lg:flex-row lg:items-center justify-between gap-5 ${
                     isSIF
-                      ? 'bg-white/95 border-amber-200/90 hover:border-amber-400 hover:shadow-lg shadow-xs'
-                      : 'bg-white/95 border-emerald-200/90 hover:border-emerald-400 hover:shadow-lg shadow-xs'
+                      ? 'bg-[#0A0F1D]/90 border-amber-500/30 hover:border-amber-400/70 hover:shadow-lg hover:shadow-amber-500/5 shadow-xs'
+                      : 'bg-[#0A0F1D]/90 border-emerald-500/30 hover:border-emerald-400/70 hover:shadow-lg hover:shadow-emerald-500/5 shadow-xs'
                   }`}
                 >
                   {/* Left Info Content */}
@@ -806,16 +810,16 @@ export default function DashboardView({
                     
                     {/* Top Metadata Badges */}
                     <div className="flex items-center gap-2.5 flex-wrap">
-                      <span className="text-xs font-mono font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/90 shadow-2xs">
+                      <span className="text-xs font-mono font-bold text-white bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 shadow-2xs">
                         {report.report_reference}
                       </span>
                       
                       <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg border ${
                         report.raw_type === 'NEAR_MISS' 
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                          ? 'bg-purple-950/60 text-purple-300 border-purple-800/50'
                           : report.raw_type === 'UNSAFE_ACT'
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                          ? 'bg-blue-950/60 text-blue-300 border-blue-800/50'
+                          : 'bg-amber-950/60 text-amber-300 border-amber-800/50'
                       }`}>
                         {report.report_type}
                       </span>
@@ -823,50 +827,50 @@ export default function DashboardView({
                       {/* SIF Status Badge */}
                       <span className={`text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5 border shadow-2xs ${
                         isSIF 
-                          ? 'bg-amber-100 text-amber-900 border-amber-300'
-                          : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                       }`}>
                         {isSIF ? (
                           <>
-                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
                             <AlertTriangle className="w-3.5 h-3.5" />
                             <span>POTENTIAL SIF PRECURSOR</span>
                           </>
                         ) : (
                           <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                             <span>NON-SIF OBSERVATION</span>
                           </>
                         )}
                       </span>
 
                       {/* Location Badge */}
-                      <span className="text-xs text-slate-500 font-mono flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/70">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-xs text-slate-400 font-mono flex items-center gap-1 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800">
+                        <MapPin className="w-3.5 h-3.5 text-slate-500" />
                         <span>{report.location}</span>
                       </span>
                     </div>
 
                     {/* Detailed Observation Narrative */}
-                    <p className="text-sm sm:text-base text-slate-800 font-medium leading-relaxed">
+                    <p className="text-sm sm:text-base text-slate-200 font-medium leading-relaxed">
                       {report.description}
                     </p>
 
                     {/* Energy Source & Hazard Pills */}
                     <div className="flex items-center gap-2 flex-wrap text-xs">
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold border border-slate-200/80 flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-900/80 text-slate-300 font-semibold border border-slate-800 flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
                         <span>Energy: {report.energy_source}</span>
                       </span>
 
                       <span className={`px-2.5 py-1 rounded-lg font-semibold border flex items-center gap-1.5 ${
                         report.barrier_status === 'BARRIER_FAILED' 
-                          ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                          ? 'bg-rose-950/50 text-rose-300 border-rose-800/40' 
                           : report.barrier_status === 'BARRIER_MISSING'
-                          ? 'bg-amber-50 text-amber-800 border-amber-200'
+                          ? 'bg-amber-950/50 text-amber-300 border-amber-800/40'
                           : report.barrier_status === 'BARRIER_BYPASSED'
-                          ? 'bg-orange-50 text-orange-800 border-orange-200'
-                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          ? 'bg-orange-950/50 text-orange-300 border-orange-800/40'
+                          : 'bg-emerald-950/50 text-emerald-300 border-emerald-800/40'
                       }`}>
                         <Shield className="w-3.5 h-3.5" />
                         <span>Barrier: {report.barrier_status?.replace('_', ' ')}</span>
@@ -874,11 +878,11 @@ export default function DashboardView({
                     </div>
 
                     {/* SafetyAI Recommendation Banner */}
-                    <div className="p-3.5 rounded-xl bg-slate-50/90 border border-slate-200/80 flex items-start gap-2.5 text-xs sm:text-sm">
-                      <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-2.5 text-xs sm:text-sm">
+                      <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-black text-slate-900">SafetyAI Recommendation: </span>
-                        <span className="text-slate-700 font-medium">{report.recommended_action}</span>
+                        <span className="font-black text-amber-400">SafetyAI Recommendation: </span>
+                        <span className="text-slate-300 font-medium">{report.recommended_action}</span>
                       </div>
                     </div>
                   </div>
@@ -888,7 +892,7 @@ export default function DashboardView({
                     <button
                       type="button"
                       onClick={() => onSelectReport(report)}
-                      className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/25 transition-all cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.02]"
+                      className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-md shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.02]"
                     >
                       <span>View Full AI Analysis</span>
                       <ExternalLink className="w-4 h-4" />

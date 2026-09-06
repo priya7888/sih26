@@ -4,6 +4,7 @@ from .database import engine, Base
 from .config import settings
 from .routers import auth, reports, analysis, sif_intelligence, feedback, dashboard
 from .seed_data import seed_sample_data
+from . import models
 
 # Create DB Tables
 Base.metadata.create_all(bind=engine)

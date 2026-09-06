@@ -10,9 +10,10 @@ import LifeSavingRulesSection from './components/LifeSavingRulesSection';
 import Footer from './components/Footer';
 import LoginModal from './components/LoginModal';
 import InteractiveAiDemoModal from './components/InteractiveAiDemoModal';
+import OrganizationPlatform from './components/platform/OrganizationPlatform';
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [demoModalOpen, setDemoModalOpen] = useState(false);
 
@@ -126,9 +127,24 @@ function AppContent() {
     }
   };
 
-  // Always render the main website (no post-login redirect to platform)
+  // 1. Loading state while verifying stored credentials
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#070709] flex flex-col items-center justify-center space-y-4 select-none">
+        <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin shadow-lg shadow-amber-500/20" />
+        <p className="text-sm font-bold tracking-tight text-white font-sans">
+          Loading SafetyAI...
+        </p>
+      </div>
+    );
+  }
 
-  // IF NOT AUTHENTICATED: RENDER COMPLETE PUBLIC LANDING PAGE (UNTOUCHED)
+  // 2. Render authenticated Organization Platform
+  if (isAuthenticated && !loginModalOpen) {
+    return <OrganizationPlatform />;
+  }
+
+  // 3. Render complete public landing page when unauthenticated
   return (
     <div className="min-h-screen bg-[#070709] text-slate-100 transition-colors duration-300 font-sans selection:bg-amber-500 selection:text-slate-950">
       
@@ -257,6 +273,7 @@ function AppContent() {
       <LoginModal
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
+        onLoginSuccess={() => setLoginModalOpen(false)}
       />
 
       {/* 10. Interactive AI SIF Demo Simulator Modal */}
