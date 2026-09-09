@@ -177,12 +177,29 @@ export const api = {
   },
 
   executeAiAnalysis: async (payload) => {
-    const res = await fetch(`${API_BASE}/ai-analysis/analyze`, {
+    const res = await fetch(`${API_BASE}/analysis/analyze`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
-    if (!res.ok) throw new Error('Failed to execute AI analysis');
+    if (!res.ok) {
+      let errMessage = 'Failed to execute AI analysis';
+      try {
+        const errData = await res.json();
+        if (errData?.detail) {
+          if (typeof errData.detail === 'string') {
+            errMessage = errData.detail;
+          } else if (Array.isArray(errData.detail)) {
+            errMessage = errData.detail.map(e => `${e.loc ? e.loc.filter(l => l !== 'body').join('.') : 'Field'}: ${e.msg}`).join('; ');
+          } else {
+            errMessage = JSON.stringify(errData.detail);
+          }
+        }
+      } catch (e) {
+        if (res.statusText) errMessage = `${errMessage}: ${res.statusText}`;
+      }
+      throw new Error(errMessage);
+    }
     return res.json();
   },
 

@@ -1,12 +1,12 @@
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.user import User
-from ..schemas.ai_analysis import AIAnalysisResponse
+from ..schemas.ai_analysis import AIAnalysisResponse, AIAnalysisRequest, AIAnalysisExecuteResponse
 from ..dependencies import get_current_user
-from ..services.analysis_service import get_organization_analyses
+from ..services.analysis_service import get_organization_analyses, execute_direct_analysis
 from ..ai_services.ai_service import analyze_safety_report
 
 router = APIRouter(prefix="/api/analysis", tags=["AI Analysis"])
@@ -272,13 +272,76 @@ def handle_live_analysis(payload: LiveAnalysisRequest) -> Dict[str, Any]:
         "weak_signals": []
     }
 
-@router.post("/analyze")
-def analyze_live_report_analysis(payload: LiveAnalysisRequest):
-    return handle_live_analysis(payload)
+@router.post("/analyze", response_model=AIAnalysisExecuteResponse)
+def analyze_safety_observation(
+    payload: AIAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Canonical direct AI Analysis endpoint:
+    Intercepts conversational/non-safety inputs, executes the 10-step AI NLP engine,
+    persists new SafetyReport and AIAnalysis in SQLite, and skips duplicates via Issue #11 composite key.
+    """
+    if not payload.report_text or len(payload.report_text.strip()) < 5:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Safety observation description must be at least 5 characters."
+        )
+    if not payload.location or len(payload.location.strip()) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Please provide a valid operating unit or location."
+        )
 
-@ai_analysis_router.post("/analyze")
-def analyze_live_report_ai_analysis(payload: LiveAnalysisRequest):
-    return handle_live_analysis(payload)
+    text = payload.report_text.strip()
+    if is_unrelated_input(text):
+        return AIAnalysisExecuteResponse(
+            report_name="Enter Correct Issue",
+            determination_status="UNRELATED INPUT",
+            sif_precursor="NO",
+            confidence=0,
+            risk_score=0,
+            sif_potential_score=0,
+            classification=payload.report_type or "Near Miss",
+            detected_hazards=[
+                "Observation does not contain recognized industrial safety hazards or equipment context",
+                "Zero physical energy vectors or critical barrier failures found in input"
+            ],
+            energy_source="None Identified",
+            barrier_status="Not Applicable (Unrelated Input)",
+            life_saving_rule="Not Applicable",
+            iogp_rule="Not Applicable",
+            explainable_reasoning=f'The input "{text}" is not recognized as a related operational safety issue. Please enter a correct safety issue describing equipment, location, barrier conditions, or hazardous energy vectors.',
+            explanation=f'The input "{text}" is not recognized as a related operational safety issue. Please enter a correct safety issue describing equipment, location, barrier conditions, or hazardous energy vectors.',
+            why_identified={"summary": "Unrelated non-safety input"},
+            recommended_controls=[
+                "Enter a correct safety issue describing equipment, location, and conditions",
+                "Include specific hazard parameters (e.g. pressure, voltage, chemical, elevation)"
+            ],
+            corrective_actions=[
+                "Provide frontline coaching on entering actionable safety observations"
+            ],
+            is_unrelated=True,
+            message="Unrelated or conversational input. No safety report created."
+        )
+
+    try:
+        return execute_direct_analysis(db, current_user, payload)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"AI analysis execution failed: {str(e)}"
+        )
+
+@ai_analysis_router.post("/analyze", response_model=AIAnalysisExecuteResponse)
+def analyze_safety_observation_alias(
+    payload: AIAnalysisRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Compatibility alias routing to canonical analysis handler."""
+    return analyze_safety_observation(payload, current_user, db)
 
 @router.get("", response_model=List[AIAnalysisResponse])
 def list_completed_analyses(

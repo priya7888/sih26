@@ -15,13 +15,13 @@ def detect_hazard(text: str) -> Optional[str]:
     if re.search(r'\b(height|scaffold|ladder|roof|edge|fall protection|harness|grating missing|hole|platform edge|climbing)\b', lower_text):
         return "Work at Height & Fall Hazard (Gravity)"
     
-    if re.search(r'\b(electrical|live wire|voltage|high voltage|panel|switchgear|arc flash|energized|shock|breaker|conduit|cable cut)\b', lower_text):
+    if re.search(r'\b(electrical|live wire|voltage|high voltage|panel|switchboard|switchgear|arc flash|energized|shock|breaker|conduit|cable cut)\b', lower_text):
         return "Electrical Arc Flash & Shock Hazard (Electrical Energy)"
     
-    if re.search(r'\b(confined space|tank|vessel|manhole|toxic gas|h2s|oxygen deficiency|methane|flammable gas|gas leak)\b', lower_text):
+    if re.search(r'\b(confined space|tank|vessel|manhole|toxic gas|h2s|oxygen deficiency|methane|natural gas|flammable gas|gas leak|gas leakage|gas cloud)\b', lower_text):
         return "Confined Space & Atmospheric / Toxic Gas Hazard"
     
-    if re.search(r'\b(loto|lockout|tagout|pressurized|hydraulic|steam|line break|hydrotest|blowout|stored pressure|pipeline pressure)\b', lower_text):
+    if re.search(r'\b(loto|lockout|tagout|pressurized|pressure|high[- ]pressure|hydraulic|steam|line break|hydrotest|blowout|stored pressure|pipeline pressure|flange leak|flange leakage|pipeline)\b', lower_text):
         return "Hazardous Energy & Pressurized Line Release (Mechanical/Pneumatic Energy)"
     
     if re.search(r'\b(forklift|vehicle|truck|dumper|loader|pedestrian|traffic|blind spot|heavy equipment movement)\b', lower_text):
@@ -39,7 +39,7 @@ def detect_hazard(text: str) -> Optional[str]:
     if re.search(r'\b(trench|excavation|cave-in|collapse|shoring|unstable slope)\b', lower_text):
         return "Excavation & Trench Collapse Hazard"
     
-    if re.search(r'\b(slip\w*|slippery|slick|trip|uneven surface|housekeeping|water on floor|debris)\b', lower_text):
+    if re.search(r'\b(slip\w*|slippery|slick|trip|uneven surface|housekeeping|water on floor|water puddle|puddle|walkway|wet floor|debris)\b', lower_text):
         return "Slip / Fall"
 
     return None

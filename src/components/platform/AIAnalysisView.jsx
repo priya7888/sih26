@@ -43,7 +43,8 @@ import {
   subscribeSafetyStore,
   getTodayDateString,
   getStoreState,
-  extractUnitKey
+  extractUnitKey,
+  syncBackendReportsToStore
 } from '../../services/safetyStore';
 
 // Available uploaded safety report data from ingestion registry
@@ -196,10 +197,14 @@ function getStoredTotalRecords() {
     if (isWiped) {
       return [];
     }
+    const storeState = getStoreState();
+    if (storeState?.reports && storeState.reports.length > 0) {
+      return storeState.reports;
+    }
     const raw = localStorage.getItem('SAFETY_TOTAL_REPORTS_V3');
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed;
       }
     }
@@ -496,112 +501,6 @@ function getDynamicConfidence(hazard, energy, exposure, barrierStatus, text) {
   return Math.min(96.8, Math.round(base * 10) / 10);
 }
 
-function analyzeSafetyObservation(text, rType) {
-  const lower = (text || '').toLowerCase();
-
-  // 1. Hazard
-  let hazard = 'Insufficient Information';
-  if (/slip\w*|slippery|slick|trip|uneven surface|water on floor/i.test(lower)) {
-    hazard = 'Slip / Fall';
-  } else if (/overhead|suspended load|crane lift|rigging|dropped object/i.test(lower)) {
-    hazard = 'Suspended Load & Dropped Object';
-  } else if (/height|scaffold|ladder|roof|edge|climbing/i.test(lower)) {
-    hazard = 'Work at Height & Fall';
-  } else if (/electr|voltage|arc flash|switchboard|breaker|live wire/i.test(lower)) {
-    hazard = 'Electrical Arc Flash & Shock';
-  } else if (/gas|pipeline|propane|lpg|cylinder|compressor|hiss/i.test(lower)) {
-    hazard = 'Flammable Gas Leakage';
-  } else if (/pressur|hydraulic|steam|line break|hydrotest/i.test(lower)) {
-    hazard = 'Hazardous Pressure & Line Release';
-  } else if (/fire|flame|spark|welding|hot work|combustible/i.test(lower)) {
-    hazard = 'Fire & Thermal Ignition';
-  } else if (/chemical|acid|caustic|solvent|corrosive/i.test(lower)) {
-    hazard = 'Hazardous Chemical Exposure';
-  } else if (/forklift|vehicle|truck|dumper|loader/i.test(lower)) {
-    hazard = 'Mobile Equipment & Vehicle Interaction';
-  } else if (/rotating|pinch|conveyor|roller|blade|entangle/i.test(lower)) {
-    hazard = 'Rotating Machinery & Pinch Point';
-  }
-
-  // 2. Energy Vector
-  let energyVector = 'Insufficient Information';
-  if (hazard === 'Slip / Fall' || /slip|slippery|slick|wet floor/i.test(lower)) {
-    energyVector = 'Gravity / Kinetic';
-  } else if (/electr|voltage|415v|11kv|arc/i.test(lower)) {
-    energyVector = 'Electrical';
-  } else if (/gas|pressure|pneumatic|hydraulic|steam/i.test(lower)) {
-    energyVector = 'Pneumatic / High Pressure';
-  } else if (/fire|flame|spark|welding|thermal|hot/i.test(lower)) {
-    energyVector = 'Thermal';
-  } else if (/height|scaffold|ladder|roof|edge|dropped/i.test(lower)) {
-    energyVector = 'Gravity';
-  } else if (/vehicle|truck|forklift|moving|roller|kinetic/i.test(lower)) {
-    energyVector = 'Kinetic';
-  } else if (/chemical|acid|toxic|caustic/i.test(lower)) {
-    energyVector = 'Chemical';
-  }
-
-  // 3. Worker Exposure
-  let workerExposure = 'Insufficient Information';
-  if (hazard === 'Slip / Fall' || /slip|slippery|slick|walking|entrance|door/i.test(lower)) {
-    workerExposure = 'Potential slip/fall exposure';
-  } else if (/under load|beneath|in drop zone/i.test(lower)) {
-    workerExposure = 'Worker directly exposed in line-of-fire beneath suspended load';
-  } else if (/at height|on scaffold|on roof|near edge/i.test(lower)) {
-    workerExposure = 'Worker exposed to unprotected fall edge at elevation';
-  } else if (/live panel|touching|bare hands|near electrical/i.test(lower)) {
-    workerExposure = 'Worker in direct physical proximity to live electrical conductors';
-  } else if (/pedestrian|walking path|blind turn|near forklift/i.test(lower)) {
-    workerExposure = 'Pedestrian worker situated in immediate trajectory of mobile equipment';
-  }
-
-  // 4. Barrier Status
-  let barrierStatus = 'Insufficient Information';
-  if (/snapped|broke|failed|barrier failed|malfunctioned|cracked|gave way/i.test(lower)) {
-    barrierStatus = 'Barrier Failed';
-  } else if (/no harness|without harness|missing guard|no barricade|unbarricaded|without permit|no loto/i.test(lower)) {
-    barrierStatus = 'Barrier Missing';
-  } else if (/safety net caught|harness arrested|interlock stopped|emergency stop activated|tripped breaker|alarm sounded/i.test(lower)) {
-    barrierStatus = 'Barrier Intact';
-  }
-
-  // 5. SIF Assessment (High-Energy Exposure + Worker Exposure + Barrier Deficiency -> SIF)
-  const isHighEnergy = ['Electrical', 'Chemical', 'Thermal', 'Pneumatic / High Pressure', 'Gravity'].includes(energyVector) && hazard !== 'Slip / Fall';
-  const hasExposure = workerExposure !== 'Insufficient Information';
-  const hasBarrierDefect = barrierStatus === 'Barrier Failed' || barrierStatus === 'Barrier Missing';
-
-  let sifPrecursor = 'NO';
-  if (isHighEnergy && (hasExposure || hasBarrierDefect)) {
-    sifPrecursor = 'YES';
-  } else if (lower.trim().split(/\s+/).length < 3 && hazard === 'Insufficient Information') {
-    sifPrecursor = 'INSUFFICIENT_INFORMATION';
-  } else {
-    sifPrecursor = 'NO';
-  }
-
-  const riskScore = calculateDynamicRiskScore(hazard, energyVector, workerExposure, barrierStatus, sifPrecursor, text);
-  const confidence = getDynamicConfidence(hazard, energyVector, workerExposure, barrierStatus, text);
-  const recommendations = getDynamicRecommendations(hazard, text);
-  const explanation = getDynamicExplanation(sifPrecursor, hazard, energyVector, workerExposure, barrierStatus, text);
-
-  return {
-    hazard,
-    energyVector,
-    workerExposure,
-    barrierStatus,
-    sifPrecursor,
-    riskScore,
-    confidence,
-    recommendations,
-    explanation,
-    detectedHazards: [
-      `Hazard: ${hazard}`,
-      `Energy Vector: ${energyVector}`,
-      `Worker Exposure: ${workerExposure}`,
-      `Barrier Status: ${barrierStatus}`
-    ]
-  };
-}
 
 // Dynamic Weak Signals Correlation across Real Records Only
 // STRICT RULE: Requires >= 2 recurring observations across Location + Activity + Time
@@ -722,6 +621,20 @@ export default function AIAnalysisView() {
   const [totalStoredRecords, setTotalStoredRecords] = useState(getStoredTotalRecords);
 
   useEffect(() => {
+    // 1. Fetch persisted backend reports on mount so historical weak signals and total records are based on real DB data
+    const syncBackendReports = async () => {
+      try {
+        const backendReports = await api.getReports();
+        if (Array.isArray(backendReports) && backendReports.length > 0) {
+          syncBackendReportsToStore(backendReports, [], false);
+          setTotalStoredRecords(getStoredTotalRecords());
+        }
+      } catch (err) {
+        console.warn('Backend reports sync on AIAnalysisView mount deferred:', err.message);
+      }
+    };
+    syncBackendReports();
+
     const handleStorageChange = () => {
       setTotalStoredRecords(getStoredTotalRecords());
     };
@@ -798,7 +711,7 @@ export default function AIAnalysisView() {
       return;
     }
 
-    // Try backend AI analysis endpoint for real observations
+    // Execute canonical backend AI analysis
     try {
       const backendResult = await api.executeAiAnalysis({
         report_text: text,
@@ -848,6 +761,8 @@ export default function AIAnalysisView() {
           const isSIF = sifVal === 'YES';
           const dynamicRiskScore = typeof backendResult.sif_potential_score === 'number' 
             ? backendResult.sif_potential_score 
+            : typeof backendResult.risk_score === 'number'
+            ? backendResult.risk_score
             : calculateDynamicRiskScore(backendResult.hazard, backendResult.energy_vector, backendResult.worker_exposure, backendResult.barrier_status, sifVal, text);
           const confidence = backendResult.confidence !== undefined ? backendResult.confidence : getDynamicConfidence(backendResult.hazard, backendResult.energy_vector, backendResult.worker_exposure, backendResult.barrier_status, text);
 
@@ -871,10 +786,12 @@ export default function AIAnalysisView() {
                 'Verify area condition during routine safety inspections'
               ];
 
-          const reasoning = backendResult.explanation || backendResult.why_identified?.summary || getDynamicExplanation(sifVal, backendResult.hazard, backendResult.energy_vector, backendResult.worker_exposure, backendResult.barrier_status, text);
+          const reasoning = backendResult.explanation || backendResult.explainable_reasoning || backendResult.why_identified?.summary || getDynamicExplanation(sifVal, backendResult.hazard, backendResult.energy_vector, backendResult.worker_exposure, backendResult.barrier_status, text);
 
           const finalResult = {
             report_name: backendResult.report_name || reportName,
+            report_reference: backendResult.report_reference,
+            is_duplicate: Boolean(backendResult.is_duplicate),
             sif_precursor: sifVal,
             confidence: confidence,
             risk_score: dynamicRiskScore,
@@ -883,7 +800,7 @@ export default function AIAnalysisView() {
             detected_hazards: hazards,
             energy_source: backendResult.energy_vector || (isSIF ? 'High Potential Energy Vector' : 'Gravity / Kinetic'),
             barrier_status: backendResult.barrier_status || 'Insufficient Information',
-            iogp_rule: backendResult.life_saving_rule || (isSIF ? 'Line of Fire (LSR-03)' : 'Workplace Housekeeping Standards'),
+            iogp_rule: backendResult.life_saving_rule || backendResult.iogp_rule || (isSIF ? 'Line of Fire (LSR-03)' : 'Workplace Housekeeping Standards'),
             explainable_reasoning: reasoning,
             recommended_controls: recControls,
             corrective_actions: capaActions
@@ -891,15 +808,13 @@ export default function AIAnalysisView() {
 
           setAnalysisResult(finalResult);
 
-          // AUTOMATICALLY PERSIST INTO CENTRAL SAFETY STORE & TOTAL RECORDS
-          const currentRecords = getStoredTotalRecords();
-          const nextRef = `REP-ID001-000${currentRecords.length + 1}`;
-          const newRecordToSave = {
-            id: Date.now(),
-            report_reference: nextRef,
+          // AUTOMATICALLY PERSIST & SYNC INTO CENTRAL SAFETY STORE & TOTAL RECORDS
+          const reportRecordToSync = {
+            id: backendResult.report_id || Date.now(),
+            report_reference: backendResult.report_reference,
             report_name: finalResult.report_name,
             report_type: rType === 'NEAR_MISS' ? 'Near Miss' : rType === 'UNSAFE_ACT' ? 'Unsafe Act' : 'Unsafe Condition',
-            description: text.slice(0, 100),
+            description: text,
             location: loc,
             facility_unit: `${loc} Active Operations`,
             report_date: reportDate,
@@ -911,98 +826,32 @@ export default function AIAnalysisView() {
             energy_source: finalResult.energy_source,
             barrier_status: finalResult.barrier_status,
             recommended_action: recControls[0] || 'Implement critical barrier control.',
-            // Requirement 11: Store separate AI fields for human review compatibility
             ai_classification: rType === 'NEAR_MISS' ? 'Near Miss' : rType === 'UNSAFE_ACT' ? 'Unsafe Act' : 'Unsafe Condition',
             ai_sif_score: dynamicRiskScore,
             ai_confidence: confidence,
             human_classification: null,
             human_sif_score: null,
             reviewer_feedback: null,
-            review_status: 'Pending Review'
+            review_status: 'Pending Review',
+            created_at: backendResult.created_at || new Date().toISOString()
           };
 
-          const centralSaved = addReportRecord(newRecordToSave);
-          const persistResult = autoPersistToTotalRecords(newRecordToSave);
-          const savedRef = centralSaved?.report?.report_reference || persistResult?.record?.report_reference || nextRef;
-          const savedCount = centralSaved?.totalCount || persistResult?.totalCount || currentRecords.length + 1;
-          setAutoSavedInfo({ reference: savedRef, totalCount: savedCount });
+          syncBackendReportsToStore([reportRecordToSync], [], false);
+          autoPersistToTotalRecords(reportRecordToSync);
+          setAutoSavedInfo({ reference: backendResult.report_reference, totalCount: getStoredTotalRecords().length });
           setTotalStoredRecords(getStoredTotalRecords());
 
         }, 850);
         return;
       }
     } catch (err) {
-      // Fallback to internal dynamic evaluation
-    }
-
-    // INTERNAL DYNAMIC SAFETY OBSERVATION EVALUATION
-    setTimeout(() => {
+      // Direct backend failure - clear mock fallback, display explicit validation/server error
       setIsAnalyzing(false);
       setAnalysisStep('');
-
-      const dynamicAnalysis = analyzeSafetyObservation(text, rType);
-      const sifVal = dynamicAnalysis.sifPrecursor;
-      const isSIF = sifVal === 'YES';
-
-      const finalResult = {
-        report_name: reportName,
-        sif_precursor: sifVal,
-        confidence: dynamicAnalysis.confidence,
-        risk_score: dynamicAnalysis.riskScore,
-        classification: rType,
-        hazard: dynamicAnalysis.hazard,
-        detected_hazards: dynamicAnalysis.detectedHazards,
-        energy_source: dynamicAnalysis.energyVector,
-        barrier_status: dynamicAnalysis.barrierStatus,
-        iogp_rule: isSIF ? 'Critical Safety Standard' : 'Workplace Housekeeping Standards',
-        explainable_reasoning: dynamicAnalysis.explanation,
-        recommended_controls: dynamicAnalysis.recommendations,
-        corrective_actions: [
-          'Log observation in routine facility maintenance register for supervisor review',
-          'Verify area condition during regular shift safety inspections'
-        ]
-      };
-
-      setAnalysisResult(finalResult);
-
-      // AUTOMATICALLY PERSIST INTO CENTRAL SAFETY STORE & TOTAL RECORDS
-      const currentRecords = getStoredTotalRecords();
-      const nextRef = `REP-ID001-000${currentRecords.length + 1}`;
-      const newRecordToSave = {
-        id: Date.now(),
-        report_reference: nextRef,
-        report_name: finalResult.report_name,
-        report_type: rType === 'NEAR_MISS' ? 'Near Miss' : rType === 'UNSAFE_ACT' ? 'Unsafe Act' : 'Unsafe Condition',
-        description: text.slice(0, 100),
-        location: loc,
-        facility_unit: `${loc} Operating Bay`,
-        report_date: reportDate,
-        risk_level: isSIF ? 'Critical' : 'Low',
-        sif_precursor_assessment: sifVal,
-        ai_score: finalResult.risk_score,
-        status: isSIF ? 'Action Required' : 'Under Review',
-        identified_hazard: finalResult.hazard || 'Operational Hazard',
-        energy_source: finalResult.energy_source,
-        barrier_status: finalResult.barrier_status,
-        recommended_action: finalResult.recommended_controls[0] || 'Implement critical barrier control.',
-        // Requirement 11: Store separate AI fields for human review compatibility
-        ai_classification: rType === 'NEAR_MISS' ? 'Near Miss' : rType === 'UNSAFE_ACT' ? 'Unsafe Act' : 'Unsafe Condition',
-        ai_sif_score: finalResult.risk_score,
-        ai_confidence: finalResult.confidence,
-        human_classification: null,
-        human_sif_score: null,
-        reviewer_feedback: null,
-        review_status: 'Pending Review'
-      };
-
-      const centralSaved = addReportRecord(newRecordToSave);
-      const persistResult = autoPersistToTotalRecords(newRecordToSave);
-      const savedRef = centralSaved?.report?.report_reference || persistResult?.record?.report_reference || nextRef;
-      const savedCount = centralSaved?.totalCount || persistResult?.totalCount || currentRecords.length + 1;
-      setAutoSavedInfo({ reference: savedRef, totalCount: savedCount });
-      setTotalStoredRecords(getStoredTotalRecords());
-
-    }, 850);
+      setValidationError(err.message || 'AI analysis request failed. Please check backend connection.');
+      setAnalysisResult(null);
+      return;
+    }
   };
 
   const handleReset = () => {
@@ -1358,8 +1207,22 @@ export default function AIAnalysisView() {
                             {analysisResult.report_name}
                           </div>
 
-                          {/* Type, SIF status, and Confidence */}
+                          {/* Type, SIF status, Reference, Duplicate, and Confidence */}
                           <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                            {/* Report Reference Badge */}
+                            {analysisResult.report_reference && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-black font-mono tracking-wide uppercase bg-blue-700 text-white shadow-xs">
+                                REF: {analysisResult.report_reference}
+                              </span>
+                            )}
+
+                            {/* Reused Duplicate Badge */}
+                            {analysisResult.is_duplicate && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-black font-mono tracking-wide uppercase bg-purple-700 text-white shadow-xs">
+                                REUSED DUPLICATE
+                              </span>
+                            )}
+
                             {/* Report Type Badge */}
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-black font-mono tracking-wide uppercase bg-slate-800 text-white shadow-xs">
                               TYPE: {analysisResult.classification.replace('_', ' ')}
