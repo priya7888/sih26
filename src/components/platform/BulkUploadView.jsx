@@ -34,9 +34,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import FullAnalysisModal from './FullAnalysisModal';
+import * as XLSX from 'xlsx';
+import { api } from '../../services/api';
 import { 
   clearAllSafetyData, 
   ingestBatchReports, 
+  syncBackendReportsToStore,
   getTodayDateString, 
   getStoreState, 
   subscribeSafetyStore, 
@@ -57,14 +60,18 @@ const REQUIRED_FIELDS = [
 // Helper to map and normalize any row to the standard schema with auto-generated Reference ID
 const mapRowToSchema = (rawRow, idx, startingNum = 1, todayStr) => {
   const keys = Object.keys(rawRow || {});
-  const getVal = (...aliases) => {
+  const getRawVal = (...aliases) => {
     for (const alias of aliases) {
       const match = keys.find(k => k.trim().toLowerCase() === alias.toLowerCase());
-      if (match && rawRow[match] !== undefined && rawRow[match] !== '') {
-        return String(rawRow[match]).trim();
+      if (match && rawRow[match] !== undefined && rawRow[match] !== null && rawRow[match] !== '') {
+        return rawRow[match];
       }
     }
     return '';
+  };
+  const getVal = (...aliases) => {
+    const v = getRawVal(...aliases);
+    return v !== undefined && v !== null ? String(v).trim() : '';
   };
 
   const today = todayStr || getTodayDateString();
@@ -72,16 +79,38 @@ const mapRowToSchema = (rawRow, idx, startingNum = 1, todayStr) => {
   // Auto-generate reference matching the exact Analyze workflow format (REP-ID001-XXXX)
   const ref = existingRef || `REP-ID001-${String(startingNum + idx).padStart(4, '0')}`;
   
-  const dateVal = getVal('Date', 'date', 'report_date', 'Report Date') || today;
+  let dateRaw = getRawVal('Date', 'date', 'report_date', 'Report Date');
+  let dateVal = today;
+
+  if (dateRaw instanceof Date && !isNaN(dateRaw.getTime())) {
+    dateVal = dateRaw.toISOString().split('T')[0];
+  } else if (typeof dateRaw === 'number' || (!isNaN(Number(dateRaw)) && /^\d+(\.\d+)?$/.test(String(dateRaw).trim()))) {
+    const serial = Number(dateRaw);
+    if (serial > 20000 && serial < 90000) {
+      const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
+      dateVal = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : today;
+    } else {
+      dateVal = today;
+    }
+  } else if (typeof dateRaw === 'string' && dateRaw.trim()) {
+    const s = dateRaw.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      dateVal = s;
+    } else {
+      const parsed = new Date(s);
+      dateVal = !isNaN(parsed.getTime()) ? parsed.toISOString().split('T')[0] : today;
+    }
+  }
+
   const siteVal = getVal('Site', 'site', 'location', 'Location', 'Unit', 'unit', 'Facility', 'facility') || `Unit ${(idx % 4) + 1}`;
   const typeVal = getVal('Report Type', 'report_type', 'ReportType', 'Type', 'type', 'Classification') || 'Near Miss';
   const rawDesc = getVal('Description', 'description', 'desc', 'Observation', 'observation', 'statement', 'Incident Description') || '';
-  const descVal = rawDesc.slice(0, 100);
+  const descVal = rawDesc.trim(); // Preserve full description without arbitrary slicing
   const hazardVal = getVal('Hazard', 'hazard', 'Identified Hazard', 'Risk', 'risk', 'Hazard Category') || 'Operational Safety Finding';
 
   return {
     Reference: ref,
-    Date: dateVal,
+    Date: String(dateVal).trim(),
     Site: siteVal,
     'Report Type': typeVal,
     Description: descVal,
@@ -108,6 +137,7 @@ export default function BulkUploadView({ onNavigate }) {
   const [validationSuccess, setValidationSuccess] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [batchResults, setBatchResults] = useState([]);
+  const [batchStats, setBatchStats] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -238,7 +268,7 @@ export default function BulkUploadView({ onNavigate }) {
     return rows;
   };
 
-  // 1-Click Quick-Load Today's Register (all 20 records with auto-generated IDs)
+  // 1-Click Quick-Load Today's Register (all 20 records with auto-generated IDs) - Demo feature
   const handleQuickLoadTodaySample = () => {
     const today = getTodayDateString();
     const sampleRows = DEFAULT_20_SAMPLE_RECORDS.map((r, idx) => ({
@@ -246,7 +276,7 @@ export default function BulkUploadView({ onNavigate }) {
       Date: today,
       Site: r.Site,
       'Report Type': r['Report Type'],
-      Description: (r.Description || '').slice(0, 100),
+      Description: (r.Description || '').trim(),
       Hazard: r.Hazard
     }));
 
@@ -260,7 +290,7 @@ export default function BulkUploadView({ onNavigate }) {
     setValidationError(null);
     setValidationSuccess({
       title: 'SCHEMA VERIFIED: 5 CORE FIELDS & AUTO-GENERATED IDs',
-      message: `All 5 required fields verified across ${sampleRows.length} records. Reference IDs (REP-ID001-XXXX) auto-generated. Ready for AI batch ingestion starting from today (${today}).`,
+      message: `All 5 required fields verified across ${sampleRows.length} sample records. Reference IDs (REP-ID001-XXXX) auto-generated. Ready for AI batch ingestion starting from today (${today}).`,
       count: 5,
       headers: REQUIRED_FIELDS
     });
@@ -277,159 +307,249 @@ export default function BulkUploadView({ onNavigate }) {
     setValidationSuccess(null);
 
     const today = getTodayDateString();
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result || '';
-        let detectedHeaders = [];
-        let rawRows = [];
+    const fileName = file.name.toLowerCase();
 
-        if (file.name.endsWith('.json')) {
-          const parsed = JSON.parse(text);
-          rawRows = Array.isArray(parsed) ? parsed : [parsed];
-          const sample = rawRows[0] || {};
-          detectedHeaders = Object.keys(sample);
+    const processRawRows = (rawRows, detectedHeaders) => {
+      if (!rawRows || rawRows.length === 0) {
+        setValidationError({
+          type: 'EMPTY_ROWS',
+          title: 'UPLOAD REJECTED: NO DATA ROWS FOUND',
+          message: 'The file contains header columns but no data rows. Please ensure rows with safety observations are present.',
+          count: detectedHeaders.length,
+          headers: detectedHeaders
+        });
+        setSelectedFile(file);
+        setParsedRows([]);
+        return;
+      }
+
+      // Map rows to schema preserving full description
+      const normalizedRows = rawRows.map((r, idx) => mapRowToSchema(r, idx, 1, today));
+
+      // Validate against backend schema constraints
+      const violations = [];
+      normalizedRows.forEach((r, idx) => {
+        const rowNum = idx + 1;
+        const desc = (r.Description || '').trim();
+        const loc = (r.Site || '').trim();
+
+        if (!desc || desc.length < 5) {
+          violations.push(`Row ${rowNum}: Description has ${desc.length} chars (minimum 5 required).`);
+        } else if (desc.length > 100) {
+          violations.push(`Row ${rowNum}: Description has ${desc.length} chars (maximum 100 allowed).`);
+        }
+
+        if (!loc || loc.length < 2) {
+          violations.push(`Row ${rowNum}: Site / Location is too short (minimum 2 characters required).`);
+        }
+      });
+
+      if (violations.length > 0) {
+        const previewViolations = violations.slice(0, 4).join(' ');
+        const extra = violations.length > 4 ? ` (+${violations.length - 4} more)` : '';
+        setValidationError({
+          type: 'SCHEMA_VIOLATION',
+          title: 'SCHEMA VALIDATION FAILED: CONSTRAINTS VIOLATED',
+          message: `${violations.length} record(s) violate backend schema requirements: ${previewViolations}${extra}. Please ensure descriptions are 5–100 characters and location is at least 2 characters.`,
+          count: detectedHeaders.length,
+          headers: detectedHeaders
+        });
+        setSelectedFile(file);
+        setParsedRows(normalizedRows);
+        return;
+      }
+
+      // Check for intra-file duplicate rows (matching Date, Location, Report Type, Description)
+      const seenFileKeys = new Set();
+      let intraFileDups = 0;
+      normalizedRows.forEach((r) => {
+        let cleanType = (r['Report Type'] || '').toUpperCase().replace(/[\s-]/g, '_');
+        const key = `${r.Date}|${(r.Site || '').trim().toLowerCase()}|${cleanType}|${(r.Description || '').trim().toLowerCase()}`;
+        if (seenFileKeys.has(key)) {
+          intraFileDups++;
         } else {
-          // CSV / Text parsing
-          const lines = text.split(/\r\n|\n/).map(l => l.trim()).filter(l => l.length > 0);
-          if (lines.length === 0) {
+          seenFileKeys.add(key);
+        }
+      });
+
+      setParsedRows(normalizedRows);
+      setValidationSuccess({
+        title: `SCHEMA VALIDATED: ${normalizedRows.length} RECORDS READY FOR INGESTION`,
+        message: intraFileDups > 0
+          ? `File verified: ${normalizedRows.length} observation row(s) processed (${intraFileDups} duplicate row(s) within this file will be skipped automatically). Ready for backend AI ingestion.`
+          : `File verified: ${normalizedRows.length} observation row(s) successfully processed with 5 core safety fields. Sequential Reference IDs (REP-ID001-XXXX) assigned. Ready for backend AI ingestion.`,
+        count: detectedHeaders.length,
+        headers: detectedHeaders
+      });
+      setSelectedFile(file);
+    };
+
+    try {
+      if (fileName.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const text = e.target?.result || '';
+            const parsed = JSON.parse(text);
+            const rawRows = Array.isArray(parsed) ? parsed : [parsed];
+            const sample = rawRows[0] || {};
+            const detectedHeaders = Object.keys(sample);
+            processRawRows(rawRows, detectedHeaders);
+          } catch (err) {
             setValidationError({
-              type: 'EMPTY_FILE',
-              title: 'UPLOAD REJECTED: EMPTY FILE',
-              message: 'The selected file contains no rows or header fields. 5 core safety fields are required (Date, Site, Report Type, Description, Hazard).',
+              type: 'PARSE_ERROR',
+              title: 'JSON PARSING ERROR',
+              message: 'Unable to parse JSON file. Please ensure a valid JSON array of safety observation objects.',
               count: 0,
               headers: []
             });
             setSelectedFile(null);
             setParsedRows([]);
-            return;
           }
-          const headerLine = lines[0];
-          const rawFields = headerLine.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-          detectedHeaders = rawFields.map(f => f.replace(/^["']|["']$/g, '').trim()).filter(f => f.length > 0);
-          rawRows = parseCSVRows(text);
-        }
-
-        if (rawRows.length === 0) {
-          setValidationError({
-            type: 'EMPTY_ROWS',
-            title: 'UPLOAD REJECTED: NO DATA ROWS FOUND',
-            message: 'The file contains header columns but no data rows. Please ensure rows with safety observations are present.',
-            count: detectedHeaders.length,
-            headers: detectedHeaders
-          });
-          setSelectedFile(file);
-          setParsedRows([]);
-          return;
-        }
-
-        // Map and normalize all rows, auto-generating Reference IDs (REP-ID001-XXXX)
-        let trimmedCount = 0;
-        const normalizedRows = rawRows.map((r, idx) => {
-          const mapped = mapRowToSchema(r, idx, 1, today);
-          const rawDesc = (r.Description || r.description || r.desc || r.Observation || '').trim();
-          if (rawDesc.length > 100) {
-            trimmedCount++;
+        };
+        reader.readAsText(file);
+      } else {
+        // Use SheetJS (XLSX) to parse actual XLSX, XLS, CSV, TXT content
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target?.result);
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+              throw new Error('Workbook contains no sheets.');
+            }
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rawRows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+            const sample = rawRows[0] || {};
+            const detectedHeaders = Object.keys(sample);
+            processRawRows(rawRows, detectedHeaders);
+          } catch (err) {
+            console.error('File parsing error:', err);
+            setValidationError({
+              type: 'PARSE_ERROR',
+              title: 'FILE PARSING ERROR',
+              message: `Unable to parse ${file.name}. Please ensure standard CSV, Excel (.xlsx/.xls), or tabular format with core safety fields.`,
+              count: 0,
+              headers: []
+            });
+            setSelectedFile(null);
+            setParsedRows([]);
           }
-          return mapped;
-        });
-
-        setParsedRows(normalizedRows);
-        setValidationSuccess({
-          title: `SCHEMA VALIDATED: ${normalizedRows.length} RECORDS READY FOR INGESTION`,
-          message: `File verified: ${normalizedRows.length} observation row(s) successfully processed with 5 core safety fields. Sequential Reference IDs (REP-ID001-XXXX) automatically assigned.${trimmedCount > 0 ? ` Note: ${trimmedCount} description(s) trimmed to 100 characters for standardized indexing.` : ''}`,
-          count: detectedHeaders.length,
-          headers: detectedHeaders
-        });
-        setSelectedFile(file);
-      } catch (err) {
-        setValidationError({
-          type: 'PARSE_ERROR',
-          title: 'FILE PARSING ERROR',
-          message: 'Unable to parse file schema. Please ensure standard CSV or JSON format with core safety fields.',
-          count: 0,
-          headers: []
-        });
-        setSelectedFile(null);
-        setParsedRows([]);
+        };
+        reader.readAsArrayBuffer(file);
       }
-    };
-
-    if (file.name.endsWith('.json') || file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
-      reader.readAsText(file);
-    } else {
-      // Excel or binary fallback: load standard 20 verified records
-      const sampleRows = DEFAULT_20_SAMPLE_RECORDS.map((r, idx) => mapRowToSchema(r, idx, 1, today));
-      setParsedRows(sampleRows);
-      setValidationSuccess({
-        title: 'EXCEL / SPREADSHEET DETECTED: 20 RECORDS LOADED',
-        message: `Parsed 20 industrial safety records from ${file.name}. Reference IDs automatically generated. Ready for AI batch ingestion.`,
-        count: 5,
-        headers: REQUIRED_FIELDS
+    } catch (err) {
+      setValidationError({
+        type: 'READ_ERROR',
+        title: 'FILE READ ERROR',
+        message: err.message || 'Unable to read the selected file.',
+        count: 0,
+        headers: []
       });
-      setSelectedFile(file);
+      setSelectedFile(null);
+      setParsedRows([]);
     }
   };
 
-  const handleSimulateUpload = () => {
-    if (!selectedFile || validationError) return;
+  const handleExecuteUpload = async () => {
+    if (!selectedFile || validationError || !parsedRows || parsedRows.length === 0) return;
+
     setIsProcessing(true);
-    setProgress(20);
-    
-    setTimeout(() => setProgress(55), 350);
-    setTimeout(() => setProgress(85), 700);
-    
-    setTimeout(async () => {
+    setProgress(15);
+    setUploadComplete(false);
+
+    try {
       const today = getTodayDateString();
-      let rowsToIngest = parsedRows;
-      
-      // If parsedRows is empty, fallback to ALL 20 sample records with auto-generated IDs (never just 4)
-      if (!rowsToIngest || rowsToIngest.length === 0) {
-        rowsToIngest = DEFAULT_20_SAMPLE_RECORDS.map((r, idx) => mapRowToSchema(r, idx, 1, today));
+      const payload = parsedRows.map((r, idx) => {
+        let cleanType = (r['Report Type'] || r.report_type || 'NEAR_MISS').toUpperCase().replace(/[\s-]/g, '_');
+        if (!['UNSAFE_ACT', 'UNSAFE_CONDITION', 'NEAR_MISS'].includes(cleanType)) {
+          if (cleanType.includes('ACT')) cleanType = 'UNSAFE_ACT';
+          else if (cleanType.includes('COND')) cleanType = 'UNSAFE_CONDITION';
+          else if (cleanType.includes('NEAR') || cleanType.includes('MISS')) cleanType = 'NEAR_MISS';
+          else cleanType = 'UNSAFE_CONDITION';
+        }
+
+        return {
+          report_type: cleanType,
+          description: (r.Description || r.description || '').trim(),
+          location: (r.Site || r.location || `Unit ${(idx % 4) + 1}`).trim(),
+          report_date: r.Date || r.report_date || today,
+          additional_context: `Hazard: ${r.Hazard || r.hazard || 'Operational Safety Observation'} | Uploaded Bulk Register`
+        };
+      });
+
+      setProgress(40);
+
+      // Real asynchronous API call to POST /api/reports/batch
+      const result = await api.batchUploadReports(payload);
+
+      setProgress(85);
+
+      if (!result || !result.reports || result.reports.length === 0) {
+        throw new Error(result?.message || 'No records were ingested by the backend server.');
       }
 
-      // Ensure every record has today's date if missing and auto-generated Reference
-      const normalizedRows = rowsToIngest.map((r, idx) => ({
-        ...r,
-        Date: r.Date || today,
-        Reference: r.Reference || `REP-ID001-${String(idx + 1).padStart(4, '0')}`
-      }));
+      // Synchronize to store with real backend-generated references and database IDs
+      syncBackendReportsToStore(result.reports, parsedRows, false);
 
-      // Ingest with replaceExisting=true so whole batch replaces previous records cleanly
-      await ingestBatchReports(normalizedRows, true);
-      
+      // Populate UI batch telemetry with actual persisted reports from backend
+      const displayedItems = result.reports.map((r, idx) => {
+        const matchingParsed = parsedRows[idx] || {};
+        const isSIF = r.sif_precursor_assessment === 'YES';
+        return {
+          id: r.id,
+          ref: r.report_reference,
+          date: r.report_date,
+          submittedAt: `${r.report_date} (Ingested)`,
+          submittedBy: 'Bulk Ingestion System',
+          submitterRole: 'Safety Auditor (Automated)',
+          submissionChannel: selectedFile?.name || 'Bulk Register Ingestion',
+          submissionMode: 'Direct Field Sync',
+          site: r.location,
+          type: r.report_type,
+          desc: r.description,
+          statement: r.description,
+          immediateAction: isSIF ? 'Immediate physical barrier enforcement and audit.' : 'Routine housekeeping and shift review.',
+          isSIF: isSIF,
+          hazard: r.identified_hazard || matchingParsed.Hazard || 'Operational Safety Observation',
+          energySource: isSIF ? 'High Energy Vector' : 'Low Mechanical Kinetic',
+          barrierStatus: isSIF ? 'CRITICAL BARRIER FAILED' : 'BARRIER ADEQUATE',
+          severityPotential: isSIF ? 'FATALITY / PERMANENT DISABILITY POTENTIAL (95%)' : 'Minor Observation'
+        };
+      });
+
+      const newCount = result.new_count !== undefined ? result.new_count : result.ingested_count;
+      const dupCount = result.duplicate_count || 0;
+      setBatchStats({ newCount, dupCount });
+
+      setBatchResults(displayedItems);
       setProgress(100);
       setIsProcessing(false);
       setUploadComplete(true);
 
-      // Populate local batch results state
-      const displayedItems = normalizedRows.map((r, idx) => {
-        const evalRes = evaluateSIFPrecursor(r.Description || '', r.Hazard || '', r['Report Type'] || '');
-        return {
-          id: Date.now() + idx,
-          ref: r.Reference || `REP-ID001-${String(idx + 1).padStart(4, '0')}`,
-          date: r.Date || today,
-          submittedAt: `${today} (Today's Live Ingestion)`,
-          submittedBy: 'Bulk Ingestion Portal',
-          submitterRole: 'Safety Data Sync Engine',
-          submissionChannel: selectedFile?.name || '5-Field Safety Register Ingestion',
-          submissionMode: 'Automated 5-Field Register Ingestion',
-          site: r.Site || `Unit ${(idx % 4) + 1}`,
-          type: r['Report Type'] || 'Near Miss',
-          desc: r.Description || '',
-          statement: r.Description || '',
-          immediateAction: evalRes.suggestedAction,
-          isSIF: evalRes.isSIF,
-          hazard: r.Hazard || 'Operational Safety Observation',
-          energySource: evalRes.energySource,
-          barrierStatus: 'CRITICAL BARRIER FAILED',
-          severityPotential: evalRes.isSIF ? 'FATALITY / PERMANENT DISABILITY POTENTIAL (96%)' : 'Minor Observation'
-        };
-      });
+      if (newCount > 0 && dupCount > 0) {
+        showToast('success', `Batch complete: ${newCount} new report(s) saved, ${dupCount} duplicate(s) identified and skipped.`);
+      } else if (newCount === 0 && dupCount > 0) {
+        showToast('info', `All ${dupCount} report(s) were already persisted in the database. No duplicate records created.`);
+      } else {
+        showToast('success', `Batch ingestion successful! All ${newCount} reports verified and saved to database.`);
+      }
 
-      setBatchResults(displayedItems);
-      showToast('success', `Batch ingestion successful! All ${normalizedRows.length} reports analyzed starting from today (${today}).`);
-    }, 1100);
+    } catch (err) {
+      console.error('Batch upload error:', err);
+      setIsProcessing(false);
+      setProgress(0);
+      setUploadComplete(false);
+      const errMsg = err.message || 'Bulk upload failed. Please verify server connection.';
+      setValidationError({
+        type: 'API_ERROR',
+        title: 'BATCH INGESTION FAILED',
+        message: errMsg,
+        count: parsedRows.length,
+        headers: []
+      });
+      showToast('error', errMsg);
+    }
   };
 
   return (
@@ -669,7 +789,7 @@ export default function BulkUploadView({ onNavigate }) {
           <button
             type="button"
             disabled={!selectedFile || Boolean(validationError) || isProcessing}
-            onClick={handleSimulateUpload}
+            onClick={handleExecuteUpload}
             className={`w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all ${
               !selectedFile || validationError || isProcessing
                 ? 'bg-stone-200 text-slate-400 cursor-not-allowed'
@@ -679,7 +799,7 @@ export default function BulkUploadView({ onNavigate }) {
             {isProcessing ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Extracting Neural Energy Vectors...</span>
+                <span>Ingesting & Analyzing Reports...</span>
               </>
             ) : (
               <>
@@ -714,7 +834,11 @@ export default function BulkUploadView({ onNavigate }) {
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs">
             <div className="flex items-center gap-2.5 text-emerald-700 font-bold">
               <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
-              <span>Batch Ingestion Completed: {batchResults.length} Safety Records Analyzed Starting Today</span>
+              <span>
+                Batch Ingestion Completed: {batchStats 
+                  ? `${batchStats.newCount} New Report(s) Saved${batchStats.dupCount > 0 ? `, ${batchStats.dupCount} Duplicate(s) Skipped` : ''}` 
+                  : `${batchResults.length} Safety Records Analyzed Starting Today`}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <button

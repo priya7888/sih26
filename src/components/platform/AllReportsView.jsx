@@ -19,7 +19,8 @@ import {
   Building2
 } from 'lucide-react';
 import FullAnalysisModal from './FullAnalysisModal';
-import { getStoreState, subscribeSafetyStore } from '../../services/safetyStore';
+import { getStoreState, subscribeSafetyStore, syncBackendReportsToStore } from '../../services/safetyStore';
+import { api } from '../../services/api';
 
 export default function AllReportsView({ onNavigate }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,6 +31,7 @@ export default function AllReportsView({ onNavigate }) {
   const [reports, setReports] = useState([]);
 
   useEffect(() => {
+    // 1. Initialize immediately from local reactive store
     const storeState = getStoreState();
     if (storeState.isWiped) {
       setReports([]);
@@ -39,6 +41,20 @@ export default function AllReportsView({ onNavigate }) {
       setReports([]);
     }
 
+    // 2. Fetch all persisted reports from backend to guarantee consistency on load/refresh
+    const syncBackendReports = async () => {
+      try {
+        const backendReports = await api.getReports();
+        if (Array.isArray(backendReports) && backendReports.length > 0) {
+          syncBackendReportsToStore(backendReports, [], false);
+        }
+      } catch (err) {
+        console.warn('Backend reports sync on AllReportsView deferred:', err.message);
+      }
+    };
+    syncBackendReports();
+
+    // 3. Subscribe to safetyStore updates
     const unsub = subscribeSafetyStore((newState) => {
       if (newState.isWiped) {
         setReports([]);
@@ -66,9 +82,13 @@ export default function AllReportsView({ onNavigate }) {
       return false;
     }
 
-    // Type Filter
-    if (typeFilter !== 'ALL' && (r.report_type || '').toLowerCase() !== typeFilter.toLowerCase()) {
-      return false;
+    // Type Filter (matches both "Near Miss" and "NEAR_MISS")
+    if (typeFilter !== 'ALL') {
+      const cleanType = (r.report_type || '').toLowerCase().replace(/[\s_-]/g, '');
+      const cleanFilter = typeFilter.toLowerCase().replace(/[\s_-]/g, '');
+      if (cleanType !== cleanFilter) {
+        return false;
+      }
     }
 
     // Site Filter
