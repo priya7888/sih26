@@ -302,14 +302,14 @@ function isUnrelatedIssue(text) {
   if (!text) return true;
   const cleaned = text.trim().toLowerCase();
   if (cleaned.length === 0) return true;
+  if (cleaned.length < 4) return true;
   if (UNRELATED_TERMS.includes(cleaned)) return true;
   if (CONVERSATIONAL_PATTERNS.some(p => p.test(cleaned))) return true;
 
-  const hasSafetyWord = SAFETY_KEYWORDS.some(k => cleaned.includes(k));
-  if (!hasSafetyWord) {
-    return true;
-  }
-  if (cleaned.length < 4) return true;
+  // NOTE: The backend's classify_safety_observation_validity() is the
+  // authoritative safety-relevance gate. The frontend only filters
+  // obviously unrelated conversational/trivial input above. All other
+  // input is sent to the backend for proper semantic classification.
   return false;
 }
 

@@ -39,7 +39,11 @@ Valid Categories Evaluated:
 """
 
 import re
+import logging
 from typing import Dict, Any, Optional, List, Tuple
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 try:
     from rapidfuzz import fuzz, process
@@ -118,6 +122,10 @@ SAFETY_OBSERVATION_PATTERNS = [
 
     # 10. Gas & Atmosphere
     (r'\b(gas leak|gas odor|smell of gas|gas smell|gas is leaking|h2s|toxic gas|fumes|vapor|smoke|hissing sound|air quality|ventilation|oxygen|flammable atmosphere|atmospheric monitoring|atmospheric test\w*|gas test\w*|gas monitor\w*|air monitor\w*|multi-gas|lel detector)\b', "Gas / Atmospheric Hazard"),
+    # 19. Unexpected Equipment Start / Operation (compound phrases only to avoid false positives on generic words)
+    (r'(?:(?:machine|equipment|motor|pump|compressor|conveyor|engine|generator|turbine|mixer|agitator|fan|blower)\s+(?:started|came on|running|operating|activated|restarted|turned on))|(?:(?:started|came on|restarted|turned on|activated)\s+(?:suddenly|unexpectedly|without warning|during (?:maintenance|inspection|repair|shutdown|work)))|(?:\b(?:unexpected(?:ly)?)\s+(?:start|activation|movement|operation))', "Unexpected Equipment Operation"),
+    # 20. Abnormal Noise / Sound
+    (r'\b(noise|sound|audible|buzz|hum|squeak|clank|rattle|click|unusual noise|loud noise|strange noise)\b', "Abnormal Noise"),
 
     # 11. Mechanical, Safeguards & Vibration
     (r'\b(guard\w*|machine guard|guard missing|guard loose|loose guard|exposed blade|nip point|pinch point|conveyor|rotating|moving parts|entanglement|jammed machine|vibrat\w*|machine is vibrating|excessive vibration)\b', "Mechanical & Safeguards"),
@@ -164,7 +172,7 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
             - explanation: str
     """
     if not text or not isinstance(text, str):
-        return {
+        result = {
             "is_valid_safety_observation": False,
             "is_unrelated": True,
             "is_insufficient_information": False,
@@ -174,6 +182,8 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
             "confidence_score": 0.0,
             "explanation": "No text provided. Please enter a workplace safety observation."
         }
+        logger.debug(f"Safety validation result: {result['validation_category']}, confidence: {result['confidence_score']}")
+        return result
 
     cleaned = text.strip()
 
@@ -188,7 +198,7 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
 
     # Check for Vague / Insufficient Information inputs (e.g. "something happened", "an issue occurred")
     if INSUFFICIENT_INFO_REGEX.search(lower_cleaned):
-        return {
+        result = {
             "is_valid_safety_observation": False,
             "is_unrelated": False,
             "is_insufficient_information": True,
@@ -196,12 +206,14 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
             "primary_category": "Insufficient Information",
             "detected_categories": [],
             "confidence_score": 0.20,
-            "explanation": "The safety report lacks specific operational details (hazard, equipment, action, or condition). Please provide a more descriptive observation."
+            "explanation": "The safety report lacks specific operational details (hazard, equipment, act, or condition). Please provide a more descriptive observation."
         }
+        logger.debug(f"Safety validation result: {result['validation_category']}, confidence: {result['confidence_score']}")
+        return result
 
     # Very short inputs (e.g. "hi", "ok", "a", "asdf")
     if len(lower_cleaned) < 4:
-        return {
+        result = {
             "is_valid_safety_observation": False,
             "is_unrelated": True,
             "is_insufficient_information": False,
@@ -211,6 +223,8 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
             "confidence_score": 0.0,
             "explanation": "The description does not appear to contain a workplace safety observation. Please describe a safety hazard, unsafe condition, unsafe act, or near-miss observation."
         }
+        logger.debug(f"Safety validation result: {result['validation_category']}, confidence: {result['confidence_score']}")
+        return result
 
     # Step 1: Detect and match safety observation categories
     matched_categories: List[str] = []
@@ -253,7 +267,7 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
     # (e.g. "Hello, water is leaking near door" -> VALID because of "water is leaking near door")
     if matched_categories:
         primary = matched_categories[0]
-        return {
+        result = {
             "is_valid_safety_observation": True,
             "is_unrelated": False,
             "is_insufficient_information": False,
@@ -263,11 +277,13 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
             "confidence_score": min(0.98, 0.75 + (0.08 * len(matched_categories))),
             "explanation": f"Validated workplace safety observation relating to {primary}."
         }
+        logger.debug(f"Safety validation result: {result['validation_category']}, confidence: {result['confidence_score']}")
+        return result
 
     # Step 3: Check for pure conversational/off-topic patterns
     is_pure_conversational = bool(CONVERSATIONAL_REGEX.search(lower_cleaned))
     if is_pure_conversational:
-        return {
+        result = {
             "is_valid_safety_observation": False,
             "is_unrelated": True,
             "is_insufficient_information": False,
@@ -277,13 +293,15 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
             "confidence_score": 0.0,
             "explanation": "The description does not appear to contain a workplace safety observation. Please describe a safety hazard, unsafe condition, unsafe act, or near-miss observation."
         }
+        logger.debug(f"Safety validation result: {result['validation_category']}, confidence: {result['confidence_score']}")
+        return result
 
     # Step 4: Fallback check: Does text contain action verbs or physical condition adjectives?
     # e.g. "Boxes were tilted", "Pipe was hot", "Floor is wet", "Water on floor", "Worker fell"
-    condition_verbs = re.search(r'\b(was|is|were|are|found|observed|noticed|left|fell|hanging|leaking|loose|blocked|broken|damaged|hot|cold|smells?|wet|dark|sharp|slippery|injured|exposed|vibrating|spilled|dropped)\b', lower_cleaned)
-    noun_indicators = re.search(r'\b(floor|door|walkway|wall|pipe|machine|stair|tool|box|panel|wire|room|yard|deck|ground|air|water|tank|worker|man|person|crew|operator|cable|gas|oil|heat|temperature|lighting|light|exit|entrance)\b', lower_cleaned)
+    condition_verbs = re.search(r'\b(was|is|were|are|found|observed|noticed|left|fell|hanging|leaking|loose|blocked|broken|damaged|hot|cold|smells?|wet|dark|sharp|slippery|injured|exposed|vibrating|spilled|dropped|overheating|getting)\b', lower_cleaned)
+    noun_indicators = re.search(r'\b(floor|door|walkway|wall|pipe|machine|motor|pump|compressor|conveyor|engine|generator|turbine|valve|equipment|crane|hoist|scaffold|ladder|vessel|stair|tool|box|panel|wire|room|yard|deck|ground|air|water|tank|worker|man|person|crew|operator|cable|gas|oil|heat|temperature|lighting|light|exit|entrance)\b', lower_cleaned)
     if condition_verbs and noun_indicators:
-        return {
+        result = {
             "is_valid_safety_observation": True,
             "is_unrelated": False,
             "is_insufficient_information": False,
@@ -293,9 +311,11 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
             "confidence_score": 0.75,
             "explanation": "Validated general operational unsafe condition."
         }
+        logger.debug(f"Safety validation result: {result['validation_category']}, confidence: {result['confidence_score']}")
+        return result
 
     # Genuinely unclassifiable / unrelated non-safety input
-    return {
+    result = {
         "is_valid_safety_observation": False,
         "is_unrelated": True,
         "is_insufficient_information": False,
@@ -305,3 +325,5 @@ def classify_safety_observation_validity(text: str) -> Dict[str, Any]:
         "confidence_score": 0.0,
         "explanation": "The description does not appear to contain a workplace safety observation. Please describe a safety hazard, unsafe condition, unsafe act, or near-miss observation."
     }
+    logger.debug(f"Safety validation result: {result['validation_category']}, confidence: {result['confidence_score']}")
+    return result
