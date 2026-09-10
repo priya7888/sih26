@@ -527,6 +527,94 @@ export async function ingestBatchReports(rawRecords, replaceExisting = true) {
   };
 }
 
+// Synchronize verified reports returned by FastAPI backend into reactive safetyStore
+export function syncBackendReportsToStore(backendReports, originalRows = [], replaceExisting = false) {
+  const todayStr = getTodayDateString();
+  const existingReports = replaceExisting ? [] : (getStoreState().reports || []);
+  const existingPrecursors = replaceExisting ? [] : (getStoreState().precursors || []);
+
+  const newReports = [];
+  const newPrecursors = [];
+
+  backendReports.forEach((r, idx) => {
+    const orig = originalRows[idx] || {};
+    const isSIF = r.sif_precursor_assessment === 'YES';
+    const hazard = r.identified_hazard || orig.Hazard || 'Operational Safety Observation';
+
+    const reportItem = {
+      id: r.id,
+      report_reference: r.report_reference,
+      report_type: r.report_type,
+      description: r.description,
+      location: r.location,
+      facility_unit: r.location,
+      report_date: r.report_date,
+      risk_level: isSIF ? 'Critical' : 'Low',
+      sif_precursor_assessment: isSIF ? 'YES' : 'NO',
+      ai_score: isSIF ? 94 : 45,
+      status: 'Under Review',
+      identified_hazard: hazard,
+      energy_source: isSIF ? 'High Energy Vector' : 'Low Mechanical Kinetic',
+      barrier_status: isSIF ? 'CRITICAL BARRIER FAILED' : 'BARRIER ADEQUATE',
+      recommended_action: isSIF ? 'Immediate physical barrier enforcement and audit.' : 'Routine housekeeping and shift review.',
+      created_at: r.created_at || new Date().toISOString()
+    };
+    newReports.push(reportItem);
+
+    if (isSIF) {
+      newPrecursors.push({
+        id: r.id,
+        precursor_id: `PREC-${todayStr.slice(5).replace('-', '')}-${String(idx + 1).padStart(2, '0')}`,
+        title: hazard || r.description.slice(0, 70),
+        category: getCategoryFromHazard(hazard),
+        unit: r.location,
+        isSIF: true,
+        risk_score: 94,
+        status: 'Under Review',
+        short_description: r.description,
+        why_identified: `AI energy classification detected critical precursor potential in "${hazard}".`,
+        detection_date: r.report_date,
+        engineering_mandate: `Immediate verification of critical barrier controls across ${r.location}.`,
+        reviewer_notes: 'Uploaded via Bulk Ingestion. Awaiting safety audit review.',
+        reviewed_at: null,
+        related_weak_signals_count: 1,
+        related_reports_count: 1
+      });
+    }
+  });
+
+  // Deduplicate against existing reports: prefer newly added reports, preserve earlier ones
+  const newReportIds = new Set(newReports.map(r => r.id).filter(Boolean));
+  const newReportRefs = new Set(newReports.map(r => r.report_reference).filter(Boolean));
+  const remainingExistingReports = existingReports.filter(
+    r => (!r.id || !newReportIds.has(r.id)) && (!r.report_reference || !newReportRefs.has(r.report_reference))
+  );
+
+  const finalReports = [...newReports, ...remainingExistingReports];
+
+  const newPrecursorIds = new Set(newPrecursors.map(p => p.id).filter(Boolean));
+  const newPrecursorRefs = new Set(newPrecursors.map(p => p.precursor_id).filter(Boolean));
+  const remainingExistingPrecursors = existingPrecursors.filter(
+    p => (!p.id || !newPrecursorIds.has(p.id)) && (!p.precursor_id || !newPrecursorRefs.has(p.precursor_id))
+  );
+
+  const finalPrecursors = [...newPrecursors, ...remainingExistingPrecursors];
+
+  try {
+    localStorage.setItem(STORAGE_REPORTS_KEY, JSON.stringify(finalReports));
+    localStorage.setItem(STORAGE_PRECURSORS_KEY, JSON.stringify(finalPrecursors));
+    localStorage.removeItem(STORAGE_WIPED_KEY);
+  } catch (e) {
+    console.error('Failed to update localStorage in syncBackendReportsToStore:', e);
+  }
+
+  notifySubscribers();
+  return {
+    reportsCount: finalReports.length,
+    precursorsCount: finalPrecursors.length
+  };
+}
+
 // Helper to enforce Administrator role check on precursor governance actions
 function checkAdminPrecursorPermission() {
   try {

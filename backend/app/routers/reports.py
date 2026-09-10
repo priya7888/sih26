@@ -10,7 +10,12 @@ from ..models.feedback import Feedback
 from ..schemas.safety_report import SafetyReportCreate, SafetyReportListItem, SafetyReportDetail
 from ..schemas.ai_analysis import AIAnalysisResponse
 from ..dependencies import get_current_user
-from ..services.report_service import create_report, get_organization_reports, get_report_by_id
+from ..services.report_service import (
+    create_report, 
+    get_organization_reports, 
+    get_report_by_id,
+    find_duplicate_report
+)
 from ..services.analysis_service import execute_ai_analysis
 
 router = APIRouter(prefix="/api/reports", tags=["Safety Reports"])
@@ -159,17 +164,59 @@ def batch_upload_reports(
     db: Session = Depends(get_db)
 ):
     """
-    Batch ingests safety reports, saves them to DB, and executes AI analysis on each record.
+    Batch ingests safety reports, skips duplicate records before database insertion
+    and AI analysis, and returns verified records.
     """
+    seen_in_batch = set()
     results = []
+    new_count = 0
+    duplicate_count = 0
+
     for item in payload:
         try:
+            norm_type = item.report_type.upper().replace("-", "_").replace(" ", "_")
+            if norm_type not in ["UNSAFE_ACT", "UNSAFE_CONDITION", "NEAR_MISS"]:
+                norm_type = "UNSAFE_CONDITION"
+
+            batch_key = (
+                item.report_date.strip(),
+                " ".join(item.location.strip().lower().split()),
+                norm_type,
+                " ".join(item.description.strip().lower().split())
+            )
+
+            # Intra-batch duplicate check
+            if batch_key in seen_in_batch:
+                duplicate_count += 1
+                continue
+            seen_in_batch.add(batch_key)
+
+            # Database duplicate check against authenticated organization
+            existing = find_duplicate_report(db, current_user.organization_id, item)
+            if existing:
+                duplicate_count += 1
+                results.append({
+                    "id": existing.id,
+                    "report_reference": existing.report_reference,
+                    "location": existing.location,
+                    "report_type": existing.report_type,
+                    "description": existing.description,
+                    "report_date": existing.report_date,
+                    "analysis_status": existing.analysis_status,
+                    "sif_precursor_assessment": existing.ai_analysis.sif_precursor_assessment if existing.ai_analysis else "NO",
+                    "identified_hazard": existing.ai_analysis.identified_hazard if existing.ai_analysis else "Pending Assessment",
+                    "is_duplicate": True
+                })
+                continue
+
+            # Genuinely new report: create and analyze
             report = create_report(db, item, current_user)
             try:
                 execute_ai_analysis(db, report)
             except Exception:
                 pass
             db.refresh(report)
+            new_count += 1
             results.append({
                 "id": report.id,
                 "report_reference": report.report_reference,
@@ -179,9 +226,18 @@ def batch_upload_reports(
                 "report_date": report.report_date,
                 "analysis_status": report.analysis_status,
                 "sif_precursor_assessment": report.ai_analysis.sif_precursor_assessment if report.ai_analysis else "NO",
-                "identified_hazard": report.ai_analysis.identified_hazard if report.ai_analysis else "Pending Assessment"
+                "identified_hazard": report.ai_analysis.identified_hazard if report.ai_analysis else "Pending Assessment",
+                "is_duplicate": False
             })
         except Exception as e:
             continue
-    return {"status": "success", "ingested_count": len(results), "reports": results}
+
+    return {
+        "status": "success",
+        "ingested_count": new_count,
+        "new_count": new_count,
+        "duplicate_count": duplicate_count,
+        "total_processed": len(payload),
+        "reports": results
+    }
 

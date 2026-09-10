@@ -126,6 +126,25 @@ export const api = {
     return res.json();
   },
 
+  batchUploadReports: async (reportsData) => {
+    const res = await fetch(`${API_BASE}/reports/batch`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(reportsData)
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      let message = 'Failed to process batch upload';
+      if (typeof errData.detail === 'string') {
+        message = errData.detail;
+      } else if (Array.isArray(errData.detail)) {
+        message = errData.detail.map(e => `${e.loc ? e.loc.filter(l => l !== 'body').join('.') : 'Field'}: ${e.msg}`).join('; ');
+      }
+      throw new Error(message);
+    }
+    return res.json();
+  },
+
   getReports: async (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.search) params.append('search', filters.search);
