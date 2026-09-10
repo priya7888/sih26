@@ -257,6 +257,25 @@ export const api = {
     return res.json();
   },
 
+  correlateReports: async (reports) => {
+    const res = await fetch(`${API_BASE}/weak-signals/correlate-reports`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ reports })
+    });
+    if (!res.ok) throw new Error('Failed to run signal correlation');
+    return res.json();
+  },
+
+  triggerSignalCorrelation: async () => {
+    const res = await fetch(`${API_BASE}/weak-signals/correlate`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to trigger signal correlation');
+    return res.json();
+  },
+
   // SIF Precursor Intelligence
   getSIFPrecursors: async () => {
     const res = await fetch(`${API_BASE}/sif-precursors`, {

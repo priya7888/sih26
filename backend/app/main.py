@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 from .config import settings
-from .routers import auth, reports, analysis, sif_intelligence, feedback, dashboard
+from .routers import auth, reports, analysis, sif_intelligence, feedback, dashboard, weak_signals, sif_precursors
 from .seed_data import seed_sample_data
 
 # Create DB Tables
@@ -32,6 +32,8 @@ app.include_router(analysis.ai_analysis_router)
 app.include_router(sif_intelligence.router)
 app.include_router(feedback.router)
 app.include_router(dashboard.router)
+app.include_router(weak_signals.router)
+app.include_router(sif_precursors.router)
 
 @app.on_event("startup")
 def startup_event():

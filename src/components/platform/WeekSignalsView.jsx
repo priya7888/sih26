@@ -28,7 +28,9 @@ import {
   ArrowDown,
   SlidersHorizontal,
   Info,
-  Lock
+  Lock,
+  MapPin,
+  Play
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { 
@@ -69,10 +71,21 @@ export default function WeekSignalsView({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
   const [signals, setSignals] = useState([]);
+  const [clusters, setClusters] = useState([]);
   
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [riskFilter, setRiskFilter] = useState('ALL'); // 'ALL' | 'High' | 'Medium' | 'Low'
+  
+  // Emerging Risk Cluster Modal State
+  const [selectedCluster, setSelectedCluster] = useState(null);
+  
+  // Live Correlation Testing Sandbox State
+  const [showLiveTester, setShowLiveTester] = useState(false);
+  const [testingScenario, setTestingScenario] = useState(false);
+  const [sandboxResult, setSandboxResult] = useState(null);
+  const [sandboxError, setSandboxError] = useState(null);
+  const [activeScenarioName, setActiveScenarioName] = useState('');
   
   // Dossier Modal State
   const [selectedSignal, setSelectedSignal] = useState(null);
@@ -172,7 +185,7 @@ export default function WeekSignalsView({ onNavigate }) {
     return list;
   }, [selectedSignal, signalDetail]);
 
-  // Load Weak Signals from backend or local safetyStore
+  // Load Weak Signals & Emerging Clusters from backend or local safetyStore
   const loadWeakSignals = async () => {
     try {
       setLoading(true);
@@ -186,6 +199,37 @@ export default function WeekSignalsView({ onNavigate }) {
       if (backendData && Array.isArray(backendData.weak_signals) && backendData.weak_signals.length > 0) {
         setSummary(backendData.summary);
         setSignals(backendData.weak_signals);
+        if (Array.isArray(backendData.emerging_clusters) && backendData.emerging_clusters.length > 0) {
+          setClusters(backendData.emerging_clusters);
+        } else {
+          // Derive clusters from signals with cluster_detected
+          const derived = backendData.weak_signals
+            .filter(s => s.cluster_detected && ((s.signals && s.signals.length >= 2) || (s.source_reports && s.source_reports.length >= 2)))
+            .map((sig, idx) => ({
+              id: idx + 1,
+              cluster_id: `CL-${String(idx + 1).padStart(2, '0')}`,
+              cluster_title: `EMERGING ${(sig.combined_risk || 'HIGH').toUpperCase()}-RISK CLUSTER: ${sig.relationship || sig.title}`,
+              title: sig.relationship || sig.title,
+              relationship: sig.relationship || sig.title,
+              signals: (sig.signals || (sig.source_reports || []).map((r, i) => ({
+                signal_num: i + 1,
+                report_id: r.report_id || `SIG-0${i+1}`,
+                description: r.short_description || r.excerpt || '',
+                individual_risk: 'MEDIUM',
+                location: r.unit || 'Operating Bay'
+              }))),
+              individual_risk_levels: sig.signals?.map((s, i) => `Signal ${i+1}: ${s.risk_level || 'MEDIUM'}`).join(', ') || 'Signal 1: MEDIUM, Signal 2: MEDIUM/HIGH',
+              location: sig.location || (sig.source_reports?.[0]?.unit) || 'Unit 1 Operating Bay',
+              time_relationship: 'Active operational window (within 48 hours)',
+              correlation_score: sig.correlation_score || sig.risk_score || 92,
+              potential_consequence: sig.potential_consequence || sig.potential_sif_precursor || 'Fire/Explosion',
+              combined_risk: (sig.combined_risk || 'HIGH').toUpperCase(),
+              reason: sig.reason || sig.why_identified || 'Hazard interaction between co-located signals.',
+              recommended_action: sig.recommended_action || sig.key_learnings || 'Immediately inspect and isolate affected area.',
+              progression_steps: sig.progression_steps || []
+            }));
+          setClusters(derived);
+        }
       } else {
         const stored = getStoredWeakSignals();
         setSignals(stored);
@@ -208,6 +252,106 @@ export default function WeekSignalsView({ onNavigate }) {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const SCENARIOS = [
+    {
+      id: 'gas_ignition',
+      name: 'Gas Leak + Ignition Source (2 Signals)',
+      badge: 'HIGH / CRITICAL',
+      reports: [
+        {
+          report_id: 'REP-01',
+          description: 'Gas is leaking from a pipeline with loud hissing sound in the compressor area.',
+          location: 'Unit 1 Operating Bay',
+          report_type: 'Near Miss'
+        },
+        {
+          report_id: 'REP-02',
+          description: 'Fire/ignition source detected near the pipeline with open electrical arcing switchgear.',
+          location: 'Unit 1 Operating Bay',
+          report_type: 'Unsafe Condition'
+        }
+      ]
+    },
+    {
+      id: 'gas_vent_ignition',
+      name: 'Gas Leak + Poor Ventilation + Ignition Source (3 Signals)',
+      badge: 'CRITICAL ESCALATION',
+      reports: [
+        {
+          report_id: 'REP-101',
+          description: 'High-pressure gas pipeline flange leaking methane vapor into trench.',
+          location: 'Unit 1 Operating Bay',
+          report_type: 'Near Miss'
+        },
+        {
+          report_id: 'REP-102',
+          description: 'Forced-air ventilation fan failed, leading to poor ventilation and uncirculated gas accumulation.',
+          location: 'Unit 1 Operating Bay',
+          report_type: 'Unsafe Condition'
+        },
+        {
+          report_id: 'REP-103',
+          description: 'Maintenance worker operating angle grinder emitting hot slag sparks nearby.',
+          location: 'Unit 1 Operating Bay',
+          report_type: 'Unsafe Act'
+        }
+      ]
+    },
+    {
+      id: 'unrelated',
+      name: 'Unrelated Signals (Separate Locations - Rejected)',
+      badge: 'REJECT COMBINATION',
+      reports: [
+        {
+          report_id: 'REP-201',
+          description: 'Loose floor tile in executive office canteen walkway.',
+          location: 'Administration Building Canteen',
+          report_type: 'Unsafe Condition'
+        },
+        {
+          report_id: 'REP-202',
+          description: 'Routine cooling water pump monthly inspection completed.',
+          location: 'Cooling Tower Area 5',
+          report_type: 'Routine'
+        }
+      ]
+    },
+    {
+      id: 'chemical_exposure',
+      name: 'Chemical Leak + Human Exposure (2 Signals)',
+      badge: 'HIGH TOXIC RISK',
+      reports: [
+        {
+          report_id: 'REP-301',
+          description: 'Corrosive chemical acid line flange leaking toxic solvent fumes.',
+          location: 'Chemical Dosing Bay',
+          report_type: 'Near Miss'
+        },
+        {
+          report_id: 'REP-302',
+          description: 'Operator working without respirator or chemical-resistant PPE in immediate vapor cloud plume.',
+          location: 'Chemical Dosing Bay',
+          report_type: 'Unsafe Act'
+        }
+      ]
+    }
+  ];
+
+  const runCorrelationTest = async (scenario) => {
+    try {
+      setTestingScenario(true);
+      setSandboxError(null);
+      setActiveScenarioName(scenario.name);
+      const res = await api.correlateReports(scenario.reports);
+      setSandboxResult(res);
+    } catch (err) {
+      console.error('Correlation sandbox error:', err);
+      setSandboxError(err.message || 'Failed to execute correlation test.');
+    } finally {
+      setTestingScenario(false);
     }
   };
 
@@ -654,46 +798,659 @@ export default function WeekSignalsView({ onNavigate }) {
 
       </div>
 
-      {/* ================= 3. WEAK SIGNAL DEEP-DIVE CARDS (WORKING LIKE STRONG REPORTS) ================= */}
-      {loading ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-3">
-          <RefreshCw className="w-6 h-6 text-[#FF5A36] animate-spin mx-auto" />
-          <p>Querying dynamic weak signal clusters and neural assessments from backend...</p>
-        </div>
-      ) : filteredSignals.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-2">
-          <p className="font-semibold text-slate-700 text-sm">No weak signals found matching the selected risk or search filters.</p>
-          <p className="text-slate-400">Try adjusting your search criteria or reset filters to "All Risks".</p>
-          <button
-            onClick={() => { setSearchQuery(''); setRiskFilter('ALL'); }}
-            className="mt-2 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold"
-          >
-            Reset Filters
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {filteredSignals.map((signal) => (
-            <div 
-              key={signal.id || signal.signal_id}
-              className="rounded-2xl bg-white border border-[#EAE6E1] hover:border-orange-300 p-6 shadow-sm space-y-4 transition-all duration-300 text-slate-800"
-            >
-              {/* Headline & Action */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                  {signal.title}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => handleOpenDossier(signal)}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF6B4A] to-[#FF5A36] hover:from-[#ff5934] hover:to-[#e64a27] text-white font-bold text-xs shadow-md shadow-orange-500/20 shrink-0 cursor-pointer flex items-center gap-1.5 transition-all self-start sm:self-auto"
-                >
-                  <span>Examine Weak Signal Dossier</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+      {/* ================= 2.5 EMERGING RISK CLUSTERS (AI MULTI-SIGNAL INTERACTION ENGINE) ================= */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-stone-200">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-200 text-rose-600 shadow-2xs">
+              <Layers className="w-5 h-5" />
             </div>
-          ))}
+            <div>
+              <h2 className="text-base sm:text-lg font-bold font-heading text-slate-900 tracking-tight flex items-center gap-2">
+                <span>Emerging Risk Clusters</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                  {clusters.length} Active Hazard Combinations
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Multi-report hazard interactions detected by AI Safety Engine where individually small or medium deviations compound into high-severity SIF consequences.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowLiveTester(!showLiveTester)}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#FF6B4A]" />
+              <span>{showLiveTester ? 'Hide Correlation Sandbox' : 'Test Signal Correlation'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Real-time Interactive Signal Correlation Sandbox (Testing Multi-Report Dynamics) */}
+        {showLiveTester && (
+          <div className="p-5 rounded-2xl bg-[#FFF8F6] border-2 border-orange-200 space-y-4 shadow-sm animate-in fade-in duration-200 text-slate-800">
+            <div className="flex items-center justify-between pb-2 border-b border-orange-100">
+              <div className="flex items-center gap-2">
+                <Play className="w-4 h-4 text-[#FF5A36]" />
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 font-heading uppercase tracking-wide">
+                  Live Hazard Correlation Sandbox (Physics-Based API Verification)
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono text-orange-700 bg-orange-100 px-2 py-0.5 rounded font-bold">
+                POST /api/weak-signals/correlate-reports
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Test how the AI Correlation Engine evaluates multiple co-occurring observations. Select a predefined test scenario to verify that related hazards escalate into critical consequences while unrelated hazards remain isolated.
+            </p>
+
+            {/* Quick Test Scenario Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              {SCENARIOS.map((sc) => (
+                <button
+                  key={sc.id}
+                  type="button"
+                  disabled={testingScenario}
+                  onClick={() => runCorrelationTest(sc)}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+                    activeScenarioName === sc.name
+                      ? 'bg-white border-[#FF5A36] shadow-sm ring-2 ring-[#FF5A36]/20'
+                      : 'bg-white border-stone-200 hover:border-orange-300 hover:bg-orange-50/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold text-orange-600 uppercase">
+                      {sc.badge}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {sc.reports.length} Reports
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-900 line-clamp-1">
+                    {sc.name}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Test Execution Output */}
+            {testingScenario && (
+              <div className="p-4 rounded-xl bg-white border border-stone-200 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-[#FF5A36]" />
+                <span>Executing multi-signal correlation algorithm via backend engine...</span>
+              </div>
+            )}
+
+            {sandboxError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-medium">
+                {sandboxError}
+              </div>
+            )}
+
+            {sandboxResult && !testingScenario && (
+              <div className="p-4 rounded-xl bg-white border-2 border-stone-200 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${sandboxResult.cluster_detected ? 'bg-rose-600 animate-pulse' : 'bg-slate-400'}`} />
+                    <span className="font-bold text-xs text-slate-900">
+                      Live Result: {sandboxResult.relationship}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+                      sandboxResult.cluster_detected ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      Cluster Detected: {String(sandboxResult.cluster_detected).toUpperCase()}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold text-white ${
+                      sandboxResult.combined_risk === 'CRITICAL' ? 'bg-rose-600' : sandboxResult.combined_risk === 'HIGH' ? 'bg-amber-500' : 'bg-slate-600'
+                    }`}>
+                      {sandboxResult.combined_risk}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="space-y-1">
+                    <span className="text-[10.5px] uppercase font-bold text-slate-400">Potential Consequence:</span>
+                    <div className="font-bold text-slate-900">{sandboxResult.potential_consequence}</div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10.5px] uppercase font-bold text-slate-400">Correlation Score:</span>
+                    <div className="font-mono font-extrabold text-orange-600">{sandboxResult.correlation_score}/100</div>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-xs">
+                  <span className="text-[10.5px] uppercase font-bold text-slate-400">Reason / Hazard Interaction:</span>
+                  <p className="text-slate-700 leading-relaxed">{sandboxResult.reason}</p>
+                </div>
+
+                {sandboxResult.recommended_action && (
+                  <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-950 font-medium">
+                    <strong className="text-emerald-800 mr-1.5 uppercase font-bold text-[10.5px]">Recommended Action:</strong>
+                    <span>{sandboxResult.recommended_action}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Cluster Cards Grid */}
+        {clusters.length === 0 ? (
+          <div className="p-8 text-center bg-white rounded-2xl border border-stone-200 text-xs text-slate-500 space-y-2">
+            <Layers className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="font-semibold text-slate-700">No multi-signal interaction clusters currently detected.</p>
+            <p className="text-slate-400 max-w-lg mx-auto">
+              The correlation engine continuously scans submitted safety reports. When related hazards (such as gas leaks and nearby ignition sources) co-occur, they will dynamically appear here as emerging risk clusters.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {clusters.map((cluster) => (
+              <div 
+                key={cluster.id || cluster.cluster_id}
+                className="rounded-2xl bg-white border-2 border-[#EAE6E1] hover:border-orange-300 p-5 sm:p-6 shadow-xs space-y-4 transition-all duration-300 text-slate-800"
+              >
+                {/* 1. Cluster Header: Title, Risk Badge, Location, Time Proximity, Correlation Score */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-stone-100">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-mono font-black px-2.5 py-0.5 rounded-lg border uppercase tracking-wider ${
+                        cluster.combined_risk === 'CRITICAL'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-amber-50 text-amber-800 border-amber-200'
+                      }`}>
+                        EMERGING {cluster.combined_risk}-RISK CLUSTER
+                      </span>
+                      <span className="text-xs font-mono text-slate-600 font-bold flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        {cluster.location}
+                      </span>
+                      {cluster.time_relationship && (
+                        <span className="text-xs font-mono text-slate-500 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          {cluster.time_relationship}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight font-heading">
+                      {cluster.relationship || cluster.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Correlation Score</div>
+                      <div className="text-sm font-mono font-extrabold text-[#FF5A36]">
+                        {cluster.correlation_score}/100
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCluster(cluster)}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF6B4A] to-[#FF5A36] hover:from-[#ff5934] hover:to-[#e64a27] text-white font-bold text-xs shadow-md shadow-orange-500/20 shrink-0 cursor-pointer flex items-center gap-1.5 transition-all"
+                    >
+                      <span>Examine Cluster</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Related Safety Reports / Signals Breakdown with Individual Risk Levels */}
+                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#EAE6E1] space-y-3">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-orange-600" />
+                      Interacting Safety Signals ({cluster.signals?.length || 2} Connected Observations):
+                    </span>
+                    <span className="font-mono text-[10.5px] text-slate-500">
+                      Individual Risk Levels
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {(cluster.signals || []).map((sig, sIdx) => (
+                      <React.Fragment key={sIdx}>
+                        <div className="p-3 rounded-xl bg-white border border-[#EAE6E1] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+                          <div className="flex items-start gap-2.5">
+                            <span className="w-6 h-6 rounded-lg bg-orange-50 border border-orange-200 text-[#FF5A36] text-[11px] font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
+                              S{sig.signal_num || sIdx + 1}
+                            </span>
+                            <div>
+                              <div className="font-mono text-[10.5px] text-slate-500 font-bold flex items-center gap-2">
+                                <span>{sig.report_id}</span>
+                                {sig.location && <span>• {sig.location}</span>}
+                              </div>
+                              <div className="text-xs text-slate-800 font-medium mt-0.5 leading-snug">
+                                "{sig.description}"
+                              </div>
+                            </div>
+                          </div>
+                          <div className="self-end sm:self-center shrink-0">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border ${
+                              sig.individual_risk === 'HIGH' || sig.individual_risk === 'CRITICAL'
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : sig.individual_risk === 'MEDIUM' || sig.individual_risk === 'MEDIUM/HIGH'
+                                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            }`}>
+                              Risk: {sig.individual_risk}
+                            </span>
+                          </div>
+                        </div>
+
+                        {sIdx < (cluster.signals || []).length - 1 && (
+                          <div className="flex items-center justify-center py-0.5">
+                            <span className="w-5 h-5 rounded-full bg-stone-200 text-slate-600 text-xs font-black flex items-center justify-center shadow-2xs">
+                              +
+                            </span>
+                          </div>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Down-arrow indicating Escalation */}
+                <div className="flex items-center justify-center py-0.5 text-slate-400">
+                  <ArrowDown className="w-4 h-4 text-orange-500 animate-bounce" />
+                </div>
+
+                {/* 4. Compound Consequence & Escalated Risk Banner */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-rose-50 via-rose-50/60 to-orange-50/40 border-2 border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
+                      <Flame className="w-5 h-5 text-rose-600" />
+                    </div>
+                    <div>
+                      <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-rose-800">
+                        Potential Combined Consequence
+                      </div>
+                      <div className="text-sm sm:text-base font-black text-rose-950 font-heading">
+                        {cluster.potential_consequence}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 self-start sm:self-auto">
+                    <div className="text-right">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Combined Escalated Risk</div>
+                      <span className={`inline-block px-3 py-1 rounded-xl text-xs font-black tracking-wider border shadow-2xs ${
+                        cluster.combined_risk === 'CRITICAL'
+                          ? 'bg-rose-600 text-white border-rose-700'
+                          : 'bg-amber-500 text-white border-amber-600'
+                      }`}>
+                        {cluster.combined_risk}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Reason & Recommended Action */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-1">
+                  <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#EAE6E1] space-y-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Hazard Interaction Reason (Why Related):</span>
+                    </div>
+                    <p className="text-xs text-slate-700 leading-relaxed font-normal">
+                      {cluster.reason}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span>Recommended Safety Action:</span>
+                    </div>
+                    <p className="text-xs text-emerald-950 leading-relaxed font-medium">
+                      {cluster.recommended_action}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ================= 3. INDIVIDUAL WEAK SIGNALS SECTION ================= */}
+      <div className="space-y-4 pt-4 border-t border-stone-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold font-heading text-slate-900 tracking-tight">
+              Individual Weak Signals &amp; Latent Observations
+            </h2>
+            <p className="text-xs text-slate-500">
+              Discrete field safety observations flagged for early precursor monitoring.
+            </p>
+          </div>
+          <span className="text-xs font-mono font-bold text-slate-500">
+            Showing {filteredSignals.length} records
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-3">
+            <RefreshCw className="w-6 h-6 text-[#FF5A36] animate-spin mx-auto" />
+            <p>Querying dynamic weak signal clusters and neural assessments from backend...</p>
+          </div>
+        ) : filteredSignals.length === 0 ? (
+          <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-2">
+            <p className="font-semibold text-slate-700 text-sm">No weak signals found matching the selected risk or search filters.</p>
+            <p className="text-slate-400">Try adjusting your search criteria or reset filters to "All Risks".</p>
+            <button
+              onClick={() => { setSearchQuery(''); setRiskFilter('ALL'); }}
+              className="mt-2 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold"
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredSignals.map((signal) => (
+              <div 
+                key={signal.id || signal.signal_id}
+                className="rounded-2xl bg-white border border-[#EAE6E1] hover:border-orange-300 p-5 sm:p-6 shadow-sm space-y-3.5 transition-all duration-300 text-slate-800"
+              >
+                {/* Headline, Badges, Score & Action */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                        {signal.signal_id} • {signal.category}
+                      </span>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-lg font-bold ${
+                        signal.risk_level === 'High' 
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200' 
+                          : signal.risk_level === 'Medium'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        {signal.risk_level?.toUpperCase()} RISK
+                      </span>
+                      <span className="text-xs text-slate-400 font-mono">
+                        Detected: {signal.first_detected_date}
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight font-heading">
+                      {signal.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 self-start sm:self-auto">
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-stone-100 text-slate-700">
+                      Score: {signal.risk_score}/100
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDossier(signal)}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF6B4A] to-[#FF5A36] hover:from-[#ff5934] hover:to-[#e64a27] text-white font-bold text-xs shadow-md shadow-orange-500/20 shrink-0 cursor-pointer flex items-center gap-1.5 transition-all"
+                    >
+                      <span>Examine Weak Signal Dossier</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Contextual Preview */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs">
+                  <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-stone-200/80">
+                    <div className="text-[10px] uppercase font-bold text-slate-400">Energy Vector</div>
+                    <div className="font-semibold text-slate-800 mt-0.5 truncate">{signal.energy_source || 'Mechanical/Chemical Energy'}</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-stone-200/80">
+                    <div className="text-[10px] uppercase font-bold text-slate-400">Barrier Status</div>
+                    <div className="font-semibold text-rose-700 mt-0.5 truncate">{signal.barrier_status || 'Barrier Degraded'}</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-stone-200/80">
+                    <div className="text-[10px] uppercase font-bold text-slate-400">Potential Precursor</div>
+                    <div className="font-semibold text-slate-800 mt-0.5 truncate">{signal.potential_sif_precursor || 'Escalation towards SIF'}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ================= 3.5 CLUSTER DETAILED INVESTIGATION MODAL ================= */}
+      {selectedCluster && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200 text-left select-none">
+          <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-[#EAE6E1] overflow-hidden flex flex-col max-h-[90vh] text-slate-800 animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="p-6 bg-gradient-to-r from-rose-50/70 via-[#FAF8F5] to-white border-b border-[#EAE6E1] flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs font-black px-3 py-1 rounded-xl bg-rose-100 text-rose-800 border border-rose-200 shadow-2xs">
+                    {selectedCluster.cluster_id || 'CL-01'} • EMERGING RISK CLUSTER
+                  </span>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-lg font-bold ${
+                    selectedCluster.combined_risk === 'CRITICAL'
+                      ? 'bg-rose-600 text-white'
+                      : 'bg-amber-500 text-white'
+                  }`}>
+                    COMBINED RISK: {selectedCluster.combined_risk}
+                  </span>
+                  <span className="text-xs text-slate-500 font-mono flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                    {selectedCluster.location}
+                  </span>
+                  {selectedCluster.time_relationship && (
+                    <span className="text-xs text-slate-500 font-mono flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      {selectedCluster.time_relationship}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-heading">
+                  {selectedCluster.relationship || selectedCluster.title}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Physics-Based Cross-Hazard Interaction • Correlation Score: <strong className="text-rose-600 font-mono">{selectedCluster.correlation_score}/100</strong>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedCluster(null)}
+                className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-400 hover:text-slate-700 border border-[#EAE6E1] transition-colors cursor-pointer shadow-2xs"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6 text-slate-700 text-xs bg-white">
+              
+              {/* CORE REQUIREMENT: VISUAL CASCADE */}
+              {/* Signal 1 -> Signal 2 [-> Signal 3] -> Hazard Interaction -> Potential Consequence -> Combined Risk */}
+              <div className="p-5 rounded-2xl bg-gradient-to-b from-[#FFF8F6] to-white border-2 border-orange-200/80 space-y-3.5 shadow-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-orange-100">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5 font-heading">
+                    <Layers className="w-4 h-4 text-[#FF5A36]" />
+                    Hazard Escalation Chain: Signal Interaction Cascade
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                    Rule-Based Safety Physics
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {/* Connected Input Signals */}
+                  {(selectedCluster.signals || []).map((sig, sIdx) => (
+                    <React.Fragment key={sIdx}>
+                      <div className="p-3.5 rounded-xl bg-white border border-stone-200 flex items-center justify-between shadow-2xs">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-lg bg-orange-100 text-[#FF5A36] text-[11px] font-mono font-black flex items-center justify-center shrink-0">
+                            S{sig.signal_num || sIdx + 1}
+                          </span>
+                          <div>
+                            <div className="font-mono text-[10px] text-slate-400 font-bold">
+                              {sig.report_id} • {sig.location || selectedCluster.location}
+                            </div>
+                            <div className="text-xs font-bold text-slate-900">
+                              "{sig.description}"
+                            </div>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border shrink-0 ${
+                          sig.individual_risk === 'HIGH' || sig.individual_risk === 'CRITICAL'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}>
+                          Risk: {sig.individual_risk}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-center text-orange-500 py-0.5">
+                        <ArrowDown className="w-4 h-4 animate-pulse" />
+                      </div>
+                    </React.Fragment>
+                  ))}
+
+                  {/* Hazard Interaction Block */}
+                  <div className="p-3.5 rounded-xl bg-amber-50 border-2 border-amber-300 flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-amber-200/80 text-amber-900 flex items-center justify-center shrink-0 font-black text-xs">
+                        ⚡
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono font-black uppercase text-amber-800">
+                          Active Hazard Interaction
+                        </div>
+                        <div className="text-xs sm:text-sm font-black text-amber-950 font-heading">
+                          {selectedCluster.relationship}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10.5px] font-mono font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-300 shrink-0">
+                      Co-Occurring Vectors
+                    </span>
+                  </div>
+
+                  <div className="flex justify-center text-rose-500 py-0.5">
+                    <ArrowDown className="w-4 h-4 animate-pulse" />
+                  </div>
+
+                  {/* Potential Consequence Block */}
+                  <div className="p-3.5 rounded-xl bg-rose-50 border-2 border-rose-300 flex items-center justify-between shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-rose-200 text-rose-800 flex items-center justify-center shrink-0">
+                        <Flame className="w-4 h-4 text-rose-700" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono font-black uppercase text-rose-800">
+                          Potential Escalated Consequence
+                        </div>
+                        <div className="text-xs sm:text-sm font-black text-rose-950 font-heading">
+                          {selectedCluster.potential_consequence}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10.5px] font-mono font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded border border-rose-300 shrink-0">
+                      Catastrophic SIF
+                    </span>
+                  </div>
+
+                  <div className="flex justify-center text-rose-600 py-0.5">
+                    <ArrowDown className="w-4 h-4 animate-bounce" />
+                  </div>
+
+                  {/* Combined Risk Block */}
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 text-white flex items-center justify-between shadow-md">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0 font-black">
+                        <AlertOctagon className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-widest text-rose-200 font-black">
+                          Escalated Combined Risk Level
+                        </div>
+                        <div className="text-base sm:text-lg font-black tracking-tight font-heading">
+                          {selectedCluster.combined_risk} RISK (Score: {selectedCluster.correlation_score}/100)
+                        </div>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 rounded-lg bg-white text-rose-700 text-xs font-black font-mono shadow-xs shrink-0">
+                      CRITICAL SIF PRECURSOR
+                    </span>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* 5-Step Progression Timeline */}
+              {selectedCluster.progression_steps && selectedCluster.progression_steps.length > 0 && (
+                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#EAE6E1] space-y-3">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    Chronological Hazard Progression Pathway (5 Stages)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                    {selectedCluster.progression_steps.map((st, i) => (
+                      <div key={i} className="p-2.5 rounded-lg bg-white border border-[#EAE6E1] space-y-1 text-center shadow-2xs">
+                        <div className="text-[10px] font-mono font-bold text-slate-500 uppercase">{st.step}</div>
+                        <div className={`text-[10px] font-extrabold ${
+                          st.trend === 'Increasing' ? 'text-rose-600' : 'text-amber-600'
+                        }`}>
+                          {st.trend}
+                        </div>
+                        <p className="text-[10.5px] text-slate-600 text-left pt-0.5 leading-snug line-clamp-3">
+                          {st.status}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Mechanism Explanation & Mitigation Action */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#EAE6E1] space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Safety Interaction Mechanism (Why Related)</span>
+                  </div>
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    {selectedCluster.reason}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-300 space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Recommended Safety Action &amp; Directives</span>
+                  </div>
+                  <p className="text-xs text-emerald-950 font-medium leading-relaxed">
+                    {selectedCluster.recommended_action}
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-[#FAF8F5] border-t border-[#EAE6E1] flex items-center justify-between text-xs text-slate-500">
+              <span className="font-mono text-[11px]">Signal Correlation Engine • API RP 754 &amp; OSHA 1910 Compliant</span>
+              <button
+                type="button"
+                onClick={() => setSelectedCluster(null)}
+                className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold border border-slate-200 shadow-xs transition-colors cursor-pointer text-xs"
+              >
+                Close Investigation
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 

@@ -928,6 +928,29 @@ export default function AIAnalysisView() {
           setAutoSavedInfo({ reference: savedRef, totalCount: savedCount });
           setTotalStoredRecords(getStoredTotalRecords());
 
+          // Auto-sync detected weak signals to Weak Signals Board
+          if (Array.isArray(backendResult.weak_signals) && backendResult.weak_signals.length > 0) {
+            backendResult.weak_signals.forEach(ws => {
+              addWeakSignalToBoard({
+                title: ws.title || `${ws.category} Latent Deviation`,
+                category: ws.category || 'Process Safety Management',
+                risk_score: ws.risk_score || dynamicRiskScore,
+                risk_level: ws.risk_score >= 90 ? 'High' : 'Medium',
+                energy_source: ws.energy_source || finalResult.energy_source,
+                barrier_status: ws.barrier_status || finalResult.barrier_status,
+                potential_sif_precursor: ws.potential_sif_precursor || `Potential SIF Precursor escalation toward ${finalResult.hazard}`,
+                source_reports: [{
+                  report_id: savedRef,
+                  report_type: newRecordToSave.report_type,
+                  date_submitted: newRecordToSave.report_date,
+                  short_description: newRecordToSave.description,
+                  unit: newRecordToSave.location,
+                  excerpt: text
+                }]
+              });
+            });
+          }
+
         }, 850);
         return;
       }

@@ -8,6 +8,7 @@ from ..schemas.ai_analysis import AIAnalysisResponse
 from ..dependencies import get_current_user
 from ..services.analysis_service import get_organization_analyses
 from ..ai_services.ai_service import analyze_safety_report
+from ..ai_services.signal_correlation import detect_latent_weak_signals_in_text
 
 router = APIRouter(prefix="/api/analysis", tags=["AI Analysis"])
 ai_analysis_router = APIRouter(prefix="/api/ai-analysis", tags=["AI Analysis"])
@@ -269,7 +270,19 @@ def handle_live_analysis(payload: LiveAnalysisRequest) -> Dict[str, Any]:
             "summary": raw_result.get("explanation", "No evidence of high-energy exposure, significant worker exposure, or barrier deficiency was identified from the available report information.")
         },
         "explanation": raw_result.get("explanation", "No evidence of high-energy exposure, significant worker exposure, or barrier deficiency was identified from the available report information."),
-        "weak_signals": []
+        "weak_signals": [
+            {
+                "signal_id": f"WS-LIVE-{i+1:02d}",
+                "title": f"{ls.get('category', 'Process Safety')} Latent Deviation",
+                "category": ls.get("category", "Process Safety Precursor"),
+                "signal": ls.get("signal", "Latent operational irregularity"),
+                "energy_source": ls.get("energy", energy),
+                "barrier_status": ls.get("barrier", barrier_display),
+                "risk_score": risk_score,
+                "potential_sif_precursor": f"Cumulative escalation toward {hazard}"
+            }
+            for i, ls in enumerate(detect_latent_weak_signals_in_text(text))
+        ]
     }
 
 @router.post("/analyze")
