@@ -625,7 +625,7 @@ export default function MobileSafetyApp() {
                 
                 <div className="space-y-3.5">
                   {/* Top Navigation & Back Button */}
-                  <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center pt-1">
                     <button
                       onClick={() => setScreenMode('welcome')}
                       className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
@@ -633,9 +633,6 @@ export default function MobileSafetyApp() {
                       <ArrowLeft className="w-4 h-4" />
                       <span>Welcome Screen</span>
                     </button>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-                      Step 1 of 2
-                    </span>
                   </div>
 
                   <div>
@@ -721,7 +718,7 @@ export default function MobileSafetyApp() {
                 </div>
 
                 {/* Continue to Step 2 Button (Bottom Anchored) */}
-                <div className="pt-2 space-y-2">
+                <div className="pt-2">
                   <button
                     type="button"
                     onClick={() => setLoginStep(2)}
@@ -730,11 +727,6 @@ export default function MobileSafetyApp() {
                     <span>Continue to Sign In</span>
                     <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                   </button>
-
-                  <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium">
-                    <Lock className="w-3 h-3 text-slate-400" />
-                    <span>Oil India Limited · Secure Role Authentication</span>
-                  </div>
                 </div>
 
               </div>
@@ -746,7 +738,7 @@ export default function MobileSafetyApp() {
                 
                 <div className="space-y-3.5">
                   {/* Top Navigation & Back Button to Step 1 */}
-                  <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center pt-1">
                     <button
                       onClick={() => setLoginStep(1)}
                       className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
@@ -754,9 +746,6 @@ export default function MobileSafetyApp() {
                       <ArrowLeft className="w-4 h-4" />
                       <span>Change Role</span>
                     </button>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-                      Step 2 of 2
-                    </span>
                   </div>
 
                   <div>
@@ -868,7 +857,7 @@ export default function MobileSafetyApp() {
                 </div>
 
                 {/* Big Blue Sign In Button (Bottom Anchored) */}
-                <div className="pt-2 space-y-2">
+                <div className="pt-2">
                   <button
                     onClick={handleLoginSubmit}
                     disabled={isLoggingIn}
@@ -886,11 +875,6 @@ export default function MobileSafetyApp() {
                       </>
                     )}
                   </button>
-
-                  <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium">
-                    <Lock className="w-3 h-3 text-slate-400" />
-                    <span>Protected by Enterprise Safety Intelligence</span>
-                  </div>
                 </div>
 
               </div>
