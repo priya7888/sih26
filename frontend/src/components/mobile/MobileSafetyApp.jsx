@@ -718,37 +718,6 @@ export default function MobileSafetyApp() {
                     })}
                   </div>
 
-                  {/* Operational Capabilities Trust Banner */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-2">
-                    <div className="flex items-center justify-between text-[11px] font-bold">
-                      <span className="flex items-center gap-1.5 text-slate-800">
-                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-                        Role Console Capabilities
-                      </span>
-                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        ONLINE
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600">
-                      <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span className="font-semibold text-slate-700 truncate">Multilingual Voice ML</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                        <span className="font-semibold text-slate-700 truncate">Atomic Task Locking</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        <span className="font-semibold text-slate-700 truncate">SIF Precursor Radar</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-50 border border-slate-100">
-                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                        <span className="font-semibold text-slate-700 truncate">Ambulance Dispatch</span>
-                      </div>
-                    </div>
-                  </div>
-
                 </div>
 
                 {/* Continue to Step 2 Button (Bottom Anchored) */}
@@ -895,22 +864,6 @@ export default function MobileSafetyApp() {
                     </div>
 
                   </form>
-
-                  {/* Enterprise Security Reassurance Card */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                        <Lock className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-slate-800 block leading-tight">Field Station Encrypted Session</span>
-                        <span className="text-[10px] text-slate-500">Authorized personnel only</span>
-                      </div>
-                    </div>
-                    <p className="text-[10.5px] text-slate-600 leading-relaxed pt-0.5">
-                      All incident reports, multilingual voice streams, and evidence files are encrypted end-to-end and transmitted directly to the Oil India HSE response dispatch.
-                    </p>
-                  </div>
 
                 </div>
 
