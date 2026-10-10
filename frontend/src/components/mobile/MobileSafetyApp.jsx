@@ -546,23 +546,6 @@ export default function MobileSafetyApp() {
       {/* MOBILE DEVICE SHELL */}
       <main className={`w-full ${isPhoneFrame ? 'sm:max-w-[400px] sm:rounded-[46px] sm:border-[9px] sm:border-slate-900 sm:shadow-2xl sm:shadow-slate-400/50' : 'max-w-xl sm:rounded-2xl'} min-h-screen sm:min-h-[820px] bg-[#F8FAFC] flex flex-col relative overflow-hidden transition-all duration-200`}>
         
-        {/* iOS STATUS BAR & DYNAMIC ISLAND */}
-        <div className="pt-2 px-6 pb-1 flex items-center justify-between text-[11px] font-semibold sticky top-0 z-40 bg-white text-slate-900">
-          <span className="font-mono tracking-tight">9:41</span>
-          
-          <div className="w-24 h-5 bg-black rounded-full flex items-center justify-center border border-slate-800/60 shadow-inner">
-            <div className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-800 mr-2" />
-            <div className="w-2 h-2 rounded-full bg-emerald-400/80 animate-pulse" />
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold">5G</span>
-            <div className="w-5 h-2.5 border border-slate-700 rounded-xs p-0.5 flex items-center">
-              <div className="w-3.5 h-1.5 bg-slate-900 rounded-2xs" />
-            </div>
-          </div>
-        </div>
-
         {/* ============================================================ */}
         {/* 1. WELCOME ONBOARDING SPLASH SCREEN (CLEAN WHITE AESTHETIC) */}
         {/* ============================================================ */}
