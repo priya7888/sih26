@@ -590,11 +590,11 @@ export default function MobileSafetyApp() {
             {/* HERO VISUAL CONTAINER (MALE & FEMALE SAFETY TEAM) */}
             <div className="my-auto py-1 flex flex-col items-center text-center z-10">
               
-              <div className="relative w-full max-w-[280px] aspect-[4/5] rounded-3xl overflow-hidden shadow-lg shadow-slate-200/80 border border-slate-100 group bg-slate-50">
+              <div className="relative w-full max-w-[280px] aspect-[4/4.2] rounded-3xl overflow-hidden shadow-md shadow-slate-200/60 border border-slate-100 group bg-white">
                 <img 
                   src={safetyTeamWelcome} 
                   alt="Industrial Safety Team (Male and Female)" 
-                  className="w-full h-full object-cover object-top transform group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-500"
                 />
                 
                 {/* Floating Safety Badge */}
