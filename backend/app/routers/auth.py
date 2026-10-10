@@ -114,6 +114,20 @@ LEGACY_ALIASES = [
     {"org_id": "id001", "email": "user1@gmail.com", "pass": "User1@123", "officer": "Field Tech 01 (Rig Ops)", "role": "NORMAL_USER", "zone": "Rig Operations", "assigned_admin_email": "admin1@gmail.com"}
 ]
 
+# Dedicated 3-Role Logins: User, Admin, and 7 Department Responders
+ROLE_BASED_ACCOUNTS = [
+    {"org_id": "id001", "email": "worker@safety.com", "pass": "worker123", "officer": "Liam Vance (Field Worker)", "role": "NORMAL_USER", "zone": "Field Unit 1", "assigned_admin_email": "admin1@gmail.com"},
+    {"org_id": "id001", "email": "admin@safety.com", "pass": "admin123", "officer": "Eleanor Vance (HSE Admin)", "role": "ADMINISTRATOR", "zone": "HSE Plant Leadership"},
+    {"org_id": "id001", "email": "ambulance@safety.com", "pass": "med123", "officer": "Dr. Sunita (Ambulance Lead)", "role": "RESPONDER", "zone": "Emergency Medical Unit"},
+    {"org_id": "id001", "email": "mechanical@safety.com", "pass": "mech123", "officer": "Marcus Sterling (Mechanical)", "role": "RESPONDER", "zone": "Mechanical Maintenance"},
+    {"org_id": "id001", "email": "electrical@safety.com", "pass": "elec123", "officer": "David Thorne (Electrical)", "role": "RESPONDER", "zone": "Electrical Substation"},
+    {"org_id": "id001", "email": "process@safety.com", "pass": "process123", "officer": "Sarah Chen (Process Safety)", "role": "RESPONDER", "zone": "Process Control Center"},
+    {"org_id": "id001", "email": "rigging@safety.com", "pass": "rig123", "officer": "Vikram Singh (Rigging Lead)", "role": "RESPONDER", "zone": "Heavy Crane & Rigging"},
+    {"org_id": "id001", "email": "hazmat@safety.com", "pass": "hazmat123", "officer": "Elena Rostova (Hazmat Lead)", "role": "RESPONDER", "zone": "Hazmat LPG Bullets"},
+    {"org_id": "id001", "email": "civil@safety.com", "pass": "civil123", "officer": "Robert Chang (Civil Lead)", "role": "RESPONDER", "zone": "Civil & Structural"},
+]
+
+
 def ensure_initial_seed(db: Session):
     """Ensures authorized organizations, 4 admins, and 40 allocated workers (10 per admin) exist in the DB."""
     for org_info in PRESET_ORGS:
@@ -153,8 +167,8 @@ def ensure_initial_seed(db: Session):
             db.refresh(admin_user)
         admin_id_map[a_info["email"]] = admin_user.id
 
-    # 2. Seed or update 40 Workers allocated to respective Admins
-    all_workers = PRESET_WORKERS + LEGACY_ALIASES
+    # 2. Seed or update Workers and Role-based Accounts (User, Admin, 7 Responders)
+    all_workers = PRESET_WORKERS + LEGACY_ALIASES + ROLE_BASED_ACCOUNTS
     for w_info in all_workers:
         assigned_admin_id = admin_id_map.get(w_info.get("assigned_admin_email"))
         worker_user = db.query(User).filter(User.email == w_info["email"]).first()

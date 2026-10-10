@@ -70,10 +70,44 @@ export const api = {
       console.error('Error checking custom users in fallback:', e);
     }
 
+    // Specific Role Logins: Worker, Admin, and 7 Department Responders
+    const ROLE_ACCOUNTS = {
+      'worker@safety.com': { name: 'Liam Vance (Field Worker)', role: 'WORKER', is_admin: false, dept: 'FIELD_OPS' },
+      'admin@safety.com': { name: 'Eleanor Vance (HSE Admin)', role: 'ADMINISTRATOR', is_admin: true, dept: 'SAFETY_OFFICER' },
+      'ambulance@safety.com': { name: 'Dr. Sunita (Ambulance Lead)', role: 'RESPONDER', is_admin: false, dept: 'AMBULANCE_MEDICAL' },
+      'mechanical@safety.com': { name: 'Marcus Sterling (Mechanical)', role: 'RESPONDER', is_admin: false, dept: 'MECHANICAL' },
+      'electrical@safety.com': { name: 'David Thorne (Electrical)', role: 'RESPONDER', is_admin: false, dept: 'ELECTRICAL' },
+      'process@safety.com': { name: 'Sarah Chen (Process Safety)', role: 'RESPONDER', is_admin: false, dept: 'PROCESS_SAFETY' },
+      'rigging@safety.com': { name: 'Vikram Singh (Rigging Lead)', role: 'RESPONDER', is_admin: false, dept: 'RIGGING_LIFTING' },
+      'hazmat@safety.com': { name: 'Elena Rostova (Hazmat Lead)', role: 'RESPONDER', is_admin: false, dept: 'HAZMAT' },
+      'civil@safety.com': { name: 'Robert Chang (Civil Lead)', role: 'RESPONDER', is_admin: false, dept: 'CIVIL_STRUCTURAL' }
+    };
+
+    if (ROLE_ACCOUNTS[cleanEmail]) {
+      const acc = ROLE_ACCOUNTS[cleanEmail];
+      return {
+        access_token: `safetyai-token-${cleanEmail.replace(/[^a-z0-9]/g, '-')}`,
+        token_type: 'bearer',
+        user: {
+          id: Date.now(),
+          organization_id: cleanOrg || 'id001',
+          email: cleanEmail,
+          full_name: acc.name,
+          role: acc.role,
+          role_name: acc.role === 'ADMINISTRATOR' ? 'Administrator' : acc.role === 'RESPONDER' ? 'Response Specialist' : 'Field Worker',
+          is_admin: acc.is_admin,
+          department: acc.dept,
+          organization_name: 'Oil India Limited – Operational Safety Unit',
+          permissions: acc.is_admin ? ['ALL', 'VIEW_DASHBOARD', 'AUDIT'] : ['VIEW_DASHBOARD', 'SUBMIT_OBSERVATION']
+        }
+      };
+    }
+
     // Role detection in client-side fallback
     const isNormalUser = (
       cleanEmail === 'user1@gmail.com' ||
       cleanEmail.includes('user') ||
+      cleanEmail.includes('worker') ||
       cleanEmail.includes('operator')
     );
 
