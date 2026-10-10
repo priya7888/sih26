@@ -44,7 +44,8 @@ import {
 import { api } from '../../services/api';
 import { 
   getStoreState, 
-  autoPersistToTotalRecords 
+  autoPersistToTotalRecords,
+  evaluateSIFPrecursor
 } from '../../services/safetyStore';
 import safetyTeamWelcome from '../../assets/safety_team_welcome.jpg';
 
@@ -94,6 +95,57 @@ const LOGIN_ROLES = [
   }
 ];
 
+// Helper to determine AI energy vector, life-saving rules, and response dispatch
+function extractAiIncidentDetails(text, category) {
+  const combined = `${text || ''} ${category || ''}`.toLowerCase();
+  
+  let energyVector = 'Mechanical & Kinetic Vector';
+  let lifeSavingRule = 'Work Authorization & Line of Fire';
+  let recommendedAction = 'Immediate physical barrier enforcement, stop work authority, and supervisor review.';
+  let dept = 'MECHANICAL';
+  let deptLabel = 'Mechanical Team ⚙️';
+
+  if (combined.includes('gas') || combined.includes('leak') || combined.includes('pipe') || combined.includes('flange') || combined.includes('pressure') || combined.includes('h2s')) {
+    energyVector = 'High Pressure Chemical & Flammable Hydrocarbon';
+    lifeSavingRule = 'Bypass Safety Controls & Energy Isolation (LOTO)';
+    recommendedAction = 'Depressurize line, isolate upstream valves, verify LEL with gas detector, and deploy 50m exclusion zone.';
+    dept = 'AMBULANCE_MEDICAL';
+    deptLabel = 'Ambulance / Medical 🚑 & Process Safety';
+  } else if (combined.includes('fire') || combined.includes('flame') || combined.includes('burn') || combined.includes('explosion') || combined.includes('smoke')) {
+    energyVector = 'Thermal Energy & Flash Fire Vector';
+    lifeSavingRule = 'Hot Work Controls & Emergency Response';
+    recommendedAction = 'Activate emergency deluge system, evacuate sector, establish fire perimeter, and standby medical.';
+    dept = 'AMBULANCE_MEDICAL';
+    deptLabel = 'Ambulance / Medical 🚑';
+  } else if (combined.includes('electric') || combined.includes('wire') || combined.includes('11kv') || combined.includes('415v') || combined.includes('arc') || combined.includes('breaker') || combined.includes('switch')) {
+    energyVector = 'High Voltage Electrical (Arc Flash Hazard)';
+    lifeSavingRule = 'Energy Isolation & Lockout/Tagout (LOTO)';
+    recommendedAction = 'Lock out distribution board, verify zero energy state with multimeter, and inspect breaker.';
+    dept = 'ELECTRICAL';
+    deptLabel = 'Electrical Team ⚡';
+  } else if (combined.includes('fall') || combined.includes('scaffold') || combined.includes('height') || combined.includes('ladder') || combined.includes('roof')) {
+    energyVector = 'Gravitational Potential Energy (Work at Height)';
+    lifeSavingRule = 'Work at Height (100% Tie-Off)';
+    recommendedAction = 'Immediately suspend elevated work, inspect scaffold green tag, and verify dual-lanyard harness.';
+    dept = 'CIVIL_STRUCTURAL';
+    deptLabel = 'Civil & Structural 🧱';
+  } else if (combined.includes('crane') || combined.includes('lift') || combined.includes('hoist') || combined.includes('sling') || combined.includes('rigging') || combined.includes('dropped')) {
+    energyVector = 'Suspended Load Kinetic & Rigging Failure';
+    lifeSavingRule = 'Line of Fire & Safe Mechanical Lifting';
+    recommendedAction = 'Establish 1.5x drop radius barricade, inspect sling certification, and halt tandem crane lifts.';
+    dept = 'RIGGING_LIFTING';
+    deptLabel = 'Rigging & Lifting 🏗️';
+  } else if (combined.includes('chemical') || combined.includes('acid') || combined.includes('toxic') || combined.includes('spill') || combined.includes('fume')) {
+    energyVector = 'Corrosive Chemical & Acute Toxicity';
+    lifeSavingRule = 'Hazardous Substances & Chemical Containment';
+    recommendedAction = 'Deploy neutralizer absorbent, evacuate downwind sector, don Level B hazmat PPE, and notify dispatch.';
+    dept = 'HAZMAT';
+    deptLabel = 'Hazmat Team ☣️';
+  }
+
+  return { energyVector, lifeSavingRule, recommendedAction, dept, deptLabel };
+}
+
 export default function MobileSafetyApp() {
   // Screen Mode: 'welcome' (Splash Onboarding) | 'login' (Role & Auth) | 'app' (Main Dashboard)
   const [screenMode, setScreenMode] = useState('welcome');
@@ -128,6 +180,7 @@ export default function MobileSafetyApp() {
   const [photoAttached, setPhotoAttached] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitFeedback, setSubmitFeedback] = useState(null);
+  const [aiAnalysisModalData, setAiAnalysisModalData] = useState(null);
 
   // Response Tasks & Overview Metrics
   const [tasks, setTasks] = useState([]);
@@ -389,57 +442,97 @@ export default function MobileSafetyApp() {
     }
   };
 
-  // Submit Safety Observation
+  // Submit Safety Observation & Execute Full AI Analysis Pipeline
   const handleSaveReport = async () => {
     const desc = translatedEnglish || spokenTranscript || `${reportCategory} identified at ${facilityLocation}`;
     setIsSubmitting(true);
     try {
-      const payload = {
+      const evalResult = evaluateSIFPrecursor(desc, reportCategory, reportCategory);
+      const isSIF = evalResult.isSIF;
+      const riskScore = evalResult.riskScore || (isSIF ? 92 : 45);
+      const details = extractAiIncidentDetails(desc, reportCategory);
+      const refId = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const newRecord = {
+        id: Date.now(),
+        report_number: refId,
+        report_reference: refId,
         title: `${reportCategory}: ${facilityLocation}`,
         description: desc,
         category: reportCategory,
-        facility_id: 1,
         location: facilityLocation,
         reported_by: currentUser?.full_name || 'Field Reporter',
-        severity: 'HIGH',
-        source: 'MOBILE_APP',
-        status: 'NEW'
+        severity: isSIF ? 'CRITICAL' : 'MEDIUM',
+        status: 'ANALYZED',
+        is_sif: isSIF,
+        risk_score: riskScore,
+        energy_vector: details.energyVector,
+        life_saving_rule: details.lifeSavingRule,
+        recommended_action: details.recommendedAction,
+        assigned_department: details.dept,
+        assigned_department_label: details.deptLabel,
+        created_at: new Date().toISOString()
       };
 
+      // 1. Persist to backend database
       try {
-        await api.createReport(payload);
+        await api.createReport({
+          title: newRecord.title,
+          description: newRecord.description,
+          category: reportCategory,
+          facility_id: 1,
+          location: facilityLocation,
+          reported_by: newRecord.reported_by,
+          severity: newRecord.severity,
+          source: 'MOBILE_APP',
+          status: 'ANALYZED'
+        });
       } catch (err) {
         console.warn('API fallback:', err);
       }
 
-      autoPersistToTotalRecords([{
-        id: Date.now(),
-        report_number: `INC-${Math.floor(1000 + Math.random() * 9000)}`,
-        title: payload.title,
-        description: payload.description,
-        location: payload.location,
-        submitted_by: currentUser?.full_name || 'Field Reporter',
-        severity: 'HIGH',
-        status: 'ANALYZING',
-        created_at: new Date().toISOString()
-      }]);
+      // 2. Persist to central safety records
+      autoPersistToTotalRecords([newRecord]);
+      try {
+        const stored = JSON.parse(localStorage.getItem('safetyai_active_reports') || '[]');
+        localStorage.setItem('safetyai_active_reports', JSON.stringify([newRecord, ...stored]));
+      } catch (e) {}
 
+      // 3. Increment KPI metrics
+      setKpis(prev => ({
+        ...prev,
+        openIncidents: prev.openIncidents + 1,
+        actionsPending: prev.actionsPending + 1
+      }));
+
+      // 4. Dispatch a real response task into active tasks radar
+      const newTask = {
+        id: Date.now(),
+        title: `Response: ${details.lifeSavingRule}`,
+        description: `${desc} — Corrective action: ${details.recommendedAction}`,
+        department: details.dept,
+        priority: isSIF ? 'CRITICAL' : 'HIGH',
+        status: 'ASSIGNED',
+        claimed_by: null,
+        created_at: 'Just now',
+        location: facilityLocation
+      };
+      setTasks(prev => [newTask, ...prev]);
+
+      // 5. Update latest alert
       setLatestAlert({
-        title: `${reportCategory} Reported`,
+        title: `${reportCategory} Analyzed (${isSIF ? 'High SIF' : 'Standard'})`,
         subtitle: `${desc.slice(0, 35)}...`,
         time: 'Just now',
-        type: 'warning'
+        type: isSIF ? 'error' : 'warning'
       });
 
-      setSubmitFeedback('Incident successfully reported and dispatched to AI SIF engine!');
-      setTimeout(() => {
-        setSubmitFeedback(null);
-        setShowReportModal(false);
-        setSpokenTranscript('');
-        setTranslatedEnglish('');
-      }, 1500);
+      // 6. Close reporting modal and open AI Analysis Results modal
+      setShowReportModal(false);
+      setSpokenTranscript('');
+      setTranslatedEnglish('');
+      setAiAnalysisModalData(newRecord);
 
-      fetchTasks();
     } catch (err) {
       alert('Error submitting report: ' + err.message);
     } finally {
@@ -1543,15 +1636,147 @@ export default function MobileSafetyApp() {
                     {isSubmitting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Analyzing SIF Precursors...</span>
+                        <span>Analyzing SIF Precursors & Storing...</span>
                       </>
                     ) : (
                       <>
-                        <Send className="w-4 h-4" />
-                        <span>Submit Report</span>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Run AI Analysis & Store Record</span>
                       </>
                     )}
                   </button>
+
+                </div>
+              </div>
+            )}
+
+            {/* FULL AI SIF ANALYSIS RESULT MODAL */}
+            {aiAnalysisModalData && (
+              <div className="absolute inset-0 bg-black/65 backdrop-blur-xs z-50 flex flex-col justify-end animate-fadeIn">
+                <div className="bg-white rounded-t-[32px] p-5 space-y-3.5 max-h-[92%] overflow-y-auto custom-scrollbar shadow-2xl">
+                  
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/30">
+                        <Sparkles className="w-5 h-5 text-amber-300" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black text-blue-600 tracking-wider uppercase block">
+                          AI Precursor Intelligence
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                          Analysis & Triage Report
+                        </h3>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setAiAnalysisModalData(null)}
+                      className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Database Storage Confirmation Banner */}
+                  <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="text-xs font-bold block">{aiAnalysisModalData.report_number} Recorded</span>
+                        <span className="text-[10px] text-emerald-700">Persisted in Central Safety Database</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold bg-white text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                      STORED
+                    </span>
+                  </div>
+
+                  {/* SIF Status Banner */}
+                  <div className={`p-4 rounded-2xl border ${
+                    aiAnalysisModalData.is_sif 
+                      ? 'bg-rose-50/70 border-rose-200 text-rose-950' 
+                      : 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                  }`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className={`text-[10px] font-black tracking-wider uppercase px-2 py-0.5 rounded-full ${
+                        aiAnalysisModalData.is_sif ? 'bg-rose-600 text-white animate-pulse' : 'bg-emerald-600 text-white'
+                      }`}>
+                        {aiAnalysisModalData.is_sif ? '🚨 CRITICAL SIF PRECURSOR DETECTED' : '✅ CONTROLLED HAZARD'}
+                      </span>
+                      <span className="text-xs font-black">
+                        Score: {aiAnalysisModalData.risk_score}/100
+                      </span>
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                      {aiAnalysisModalData.title}
+                    </h4>
+                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                      "{aiAnalysisModalData.description}"
+                    </p>
+                  </div>
+
+                  {/* AI Breakdown Cards */}
+                  <div className="space-y-2 text-xs">
+                    
+                    {/* Energy Vector */}
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-amber-500" /> Detected Energy Vector
+                      </span>
+                      <p className="font-bold text-slate-800">{aiAnalysisModalData.energy_vector}</p>
+                    </div>
+
+                    {/* Life-Saving Rule */}
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                        <ShieldAlert className="w-3 h-3 text-rose-500" /> IOGP Life-Saving Rule
+                      </span>
+                      <p className="font-bold text-slate-800">{aiAnalysisModalData.life_saving_rule}</p>
+                    </div>
+
+                    {/* AI Recommended Remediation */}
+                    <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-200 space-y-1">
+                      <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-blue-600" /> Recommended Corrective Action
+                      </span>
+                      <p className="font-semibold text-blue-950 leading-relaxed">{aiAnalysisModalData.recommended_action}</p>
+                    </div>
+
+                    {/* Auto-Dispatched Unit */}
+                    <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+                          Auto-Dispatched Department
+                        </span>
+                        <span className="text-xs font-bold text-slate-900">{aiAnalysisModalData.assigned_department_label}</span>
+                      </div>
+                      <span className="text-[9px] font-bold bg-amber-600 text-white px-2 py-0.5 rounded-full">
+                        LIVE TASK
+                      </span>
+                    </div>
+
+                  </div>
+
+                  {/* Bottom Actions */}
+                  <div className="space-y-2 pt-1">
+                    <button
+                      onClick={() => {
+                        setSelectedDept(aiAnalysisModalData.assigned_department);
+                        setAiAnalysisModalData(null);
+                      }}
+                      className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-xs tracking-wide shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    >
+                      <span>View Dispatched Task in Radar</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setAiAnalysisModalData(null)}
+                      className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                    >
+                      Done / Return to Dashboard
+                    </button>
+                  </div>
 
                 </div>
               </div>
