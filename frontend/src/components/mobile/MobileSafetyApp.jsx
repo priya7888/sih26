@@ -33,15 +33,19 @@ import {
   Check,
   LogOut,
   ArrowRight,
+  ArrowLeft,
   Ambulance,
   KeyRound,
-  Mail
+  Mail,
+  Zap,
+  Cpu
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { 
   getStoreState, 
   autoPersistToTotalRecords 
 } from '../../services/safetyStore';
+import aiWelcomeHero from '../../assets/ai_welcome_hero.jpg';
 
 // Department list for response tasks including Ambulance
 const DEPARTMENTS = [
@@ -90,8 +94,11 @@ const LOGIN_ROLES = [
 ];
 
 export default function MobileSafetyApp() {
+  // Screen Mode: 'welcome' (Splash Onboarding) | 'login' (3-Role Selection) | 'app' (Main Dashboard)
+  const [screenMode, setScreenMode] = useState('welcome');
+
   // Authentication State
-  const [currentUser, setCurrentUser] = useState(null); // null = shows 3-role login screen
+  const [currentUser, setCurrentUser] = useState(null);
   const [selectedRole, setSelectedRole] = useState('WORKER'); // 'WORKER' | 'RESPONDER' | 'ADMIN'
   const [selectedResponderDept, setSelectedResponderDept] = useState('AMBULANCE_MEDICAL');
   const [emailInput, setEmailInput] = useState('worker@safety.com');
@@ -99,7 +106,7 @@ export default function MobileSafetyApp() {
   const [loginError, setLoginError] = useState(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Navigation tabs: 'home' | 'incidents' | 'alerts' | 'more'
+  // Navigation tabs in main app: 'home' | 'incidents' | 'alerts' | 'more'
   const [activeTab, setActiveTab] = useState('home');
   const [isPhoneFrame, setIsPhoneFrame] = useState(true);
 
@@ -219,12 +226,12 @@ export default function MobileSafetyApp() {
       const res = await api.login('id001', emailInput, passwordInput);
       if (res && res.user) {
         setCurrentUser(res.user);
+        setScreenMode('app');
         setActiveTab('home');
       } else {
         throw new Error('Authentication failed');
       }
     } catch (err) {
-      // Local fallback for offline validation
       const cleanEmail = emailInput.trim().toLowerCase();
       const roleObj = LOGIN_ROLES.find(r => r.id === selectedRole);
       
@@ -250,6 +257,7 @@ export default function MobileSafetyApp() {
       }
 
       setCurrentUser(userObj);
+      setScreenMode('app');
       setActiveTab('home');
     } finally {
       setIsLoggingIn(false);
@@ -259,6 +267,7 @@ export default function MobileSafetyApp() {
   // Logout handler
   const handleLogout = () => {
     setCurrentUser(null);
+    setScreenMode('welcome');
     setEmailInput('worker@safety.com');
     setPasswordInput('worker123');
     setSelectedRole('WORKER');
@@ -522,7 +531,7 @@ export default function MobileSafetyApp() {
       <header className="hidden sm:flex w-full max-w-[410px] items-center justify-between pb-2 px-1 text-xs text-slate-500">
         <div className="flex items-center gap-1.5 font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>SafetyPulse Mobile</span>
+          <span>SafetyPulse AI Mobile</span>
         </div>
         <button
           onClick={() => setIsPhoneFrame(!isPhoneFrame)}
@@ -537,48 +546,169 @@ export default function MobileSafetyApp() {
       <main className={`w-full ${isPhoneFrame ? 'sm:max-w-[400px] sm:rounded-[46px] sm:border-[9px] sm:border-slate-900 sm:shadow-2xl sm:shadow-slate-400/50' : 'max-w-xl sm:rounded-2xl'} min-h-screen sm:min-h-[820px] bg-[#F8FAFC] flex flex-col relative overflow-hidden transition-all duration-200`}>
         
         {/* iOS STATUS BAR & DYNAMIC ISLAND */}
-        <div className="pt-2 px-6 pb-1 flex items-center justify-between text-[11px] font-semibold text-slate-900 bg-white sticky top-0 z-40">
+        <div className={`pt-2 px-6 pb-1 flex items-center justify-between text-[11px] font-semibold sticky top-0 z-40 ${
+          screenMode === 'welcome' ? 'bg-[#09111E] text-slate-300' : 'bg-white text-slate-900'
+        }`}>
           <span className="font-mono tracking-tight">9:41</span>
           
-          <div className="w-24 h-5 bg-black rounded-full flex items-center justify-center">
+          <div className="w-24 h-5 bg-black rounded-full flex items-center justify-center border border-slate-800/60 shadow-inner">
             <div className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-800 mr-2" />
             <div className="w-2 h-2 rounded-full bg-emerald-400/80 animate-pulse" />
           </div>
 
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold">5G</span>
-            <div className="w-5 h-2.5 border border-slate-700 rounded-xs p-0.5 flex items-center">
-              <div className="w-3.5 h-1.5 bg-slate-900 rounded-2xs" />
+            <div className="w-5 h-2.5 border border-current rounded-xs p-0.5 flex items-center">
+              <div className="w-3.5 h-1.5 bg-current rounded-2xs" />
             </div>
           </div>
         </div>
 
         {/* ============================================================ */}
-        {/* 1. THREE-FIELD LOGIN SCREEN (WHEN NOT LOGGED IN) */}
+        {/* 1. WELCOME ONBOARDING SPLASH SCREEN (FIRST PAGE BEFORE LOGIN) */}
         {/* ============================================================ */}
-        {!currentUser ? (
-          <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col justify-between animate-fadeIn custom-scrollbar">
+        {screenMode === 'welcome' && (
+          <div className="flex-1 bg-[#09111E] text-slate-100 flex flex-col justify-between px-6 py-4 animate-fadeIn relative overflow-hidden">
             
-            <div className="space-y-5">
-              
-              {/* App Brand Header */}
-              <div className="flex items-center gap-2 pt-1">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-green-600 flex items-center justify-center text-white shadow-sm shadow-emerald-500/30">
-                  <Shield className="w-5 h-5 fill-white" />
+            {/* Subtle background ambient glow circles */}
+            <div className="absolute top-1/4 -left-20 w-56 h-56 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-1/3 -right-20 w-64 h-64 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Top Minimal Brand & Status Badge */}
+            <div className="flex items-center justify-between z-10 pt-1">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
+                  <Shield className="w-4 h-4 text-white fill-white" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-1 leading-none">
-                    <span className="text-base font-black tracking-tight text-slate-900">Safety</span>
-                    <span className="text-base font-black tracking-tight text-emerald-600">Pulse</span>
+                <span className="text-sm font-black tracking-tight text-white">SafetyPulse</span>
+              </div>
+
+              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-mono text-cyan-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                <span>AI SIF RADAR</span>
+              </div>
+            </div>
+
+            {/* HERO VISUAL CONTAINER */}
+            <div className="my-auto py-2 flex flex-col items-center text-center z-10">
+              
+              <div className="relative w-full max-w-[290px] aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl shadow-cyan-950/60 border border-cyan-500/30 group">
+                <img 
+                  src={aiWelcomeHero} 
+                  alt="AI Safety Intelligence Shield" 
+                  className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700"
+                />
+                
+                {/* Holographic Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#09111E] via-transparent to-transparent opacity-80" />
+                
+                {/* Floating Live AI Badge */}
+                <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 flex items-center justify-between text-left">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
+                      <Cpu className="w-4 h-4 animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-white block">Precursor Neural Guard</span>
+                      <span className="text-[9px] text-cyan-300 font-mono">Real-time Energy Scan</span>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-medium">Enterprise HSE Platform</span>
+                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    PROTECTED
+                  </span>
+                </div>
+              </div>
+
+              {/* Title & Tagline */}
+              <div className="mt-4 space-y-1">
+                <h1 className="text-xl font-black text-white tracking-tight leading-tight">
+                  SafetyPulse AI
+                </h1>
+                <p className="text-xs text-slate-300 font-medium max-w-[280px]">
+                  Predictive Hazard Intelligence. Zero Fatalities.
+                </p>
+              </div>
+
+              {/* 3 Quick Value Badges */}
+              <div className="flex items-center justify-center gap-2 mt-3 text-[10px] text-slate-400 font-medium">
+                <span className="flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-amber-400" /> SIF AI
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Mic className="w-3 h-3 text-cyan-400" /> 3 Languages
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Ambulance className="w-3 h-3 text-rose-400" /> 7 Teams
+                </span>
+              </div>
+
+            </div>
+
+            {/* BOTTOM ACTION BUTTONS */}
+            <div className="space-y-2.5 z-10 pb-2">
+              
+              {/* PRIMARY CTA: GET STARTED / LOG IN */}
+              <button
+                onClick={() => setScreenMode('login')}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:brightness-110 active:scale-[0.98] text-white font-bold text-sm tracking-wide shadow-lg shadow-blue-600/40 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>Get Started / Sign In</span>
+                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
+
+              {/* EMERGENCY SOS QUICK SHORTCUT */}
+              <button
+                onClick={() => {
+                  setScreenMode('app');
+                  setActiveTab('alerts');
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 text-rose-400 text-xs font-semibold flex items-center justify-center gap-1.5 border border-rose-500/20 transition-colors"
+              >
+                <Flame className="w-3.5 h-3.5 animate-pulse" />
+                <span>Emergency SOS Hotline & Bypass</span>
+              </button>
+
+              <p className="text-[10px] text-slate-500 text-center font-mono">
+                Oil India Limited · Industrial Safety Operations
+              </p>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* 2. THREE-FIELD LOGIN SCREEN (STEP 2: ROLE SELECTOR & AUTH) */}
+        {/* ============================================================ */}
+        {screenMode === 'login' && (
+          <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col justify-between animate-fadeIn custom-scrollbar">
+            
+            <div className="space-y-4">
+              
+              {/* Top Navigation & Back Button */}
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  onClick={() => setScreenMode('welcome')}
+                  className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Welcome Screen</span>
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
+                    <Shield className="w-3.5 h-3.5 fill-white" />
+                  </div>
+                  <span className="text-xs font-black text-slate-900">SafetyPulse</span>
                 </div>
               </div>
 
               <div>
-                <h1 className="text-lg font-bold text-slate-900 tracking-tight">
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                   Choose Login Type
-                </h1>
+                </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Select your role to access your safety operations console
                 </p>
@@ -741,16 +871,17 @@ export default function MobileSafetyApp() {
 
             </div>
 
-            <p className="text-[10px] text-slate-400 text-center font-medium pt-4">
+            <p className="text-[10px] text-slate-400 text-center font-medium pt-3">
               Protected by Enterprise Multi-Department Safety Intelligence
             </p>
 
           </div>
-        ) : (
+        )}
 
-          /* ============================================================ */
-          /* 2. AUTHENTICATED MAIN APPLICATION WEBSITE (PRESENT WEBSITE) */
-          /* ============================================================ */
+        {/* ============================================================ */}
+        {/* 3. AUTHENTICATED MAIN APPLICATION WEBSITE (PRESENT WEBSITE) */}
+        {/* ============================================================ */}
+        {screenMode === 'app' && currentUser && (
           <>
             {/* TOP HEADER: USER GREETING & LOGOUT BUTTON */}
             <section aria-label="App Navigation Header" className="bg-white px-5 pt-3 pb-3 border-b border-slate-100 sticky top-7 z-30">
@@ -778,10 +909,10 @@ export default function MobileSafetyApp() {
                     </span>
                   </button>
 
-                  {/* Sign Out Button to return to 3-Role Login */}
+                  {/* Sign Out Button to return to Welcome */}
                   <button
                     onClick={handleLogout}
-                    title="Sign Out to Role Selection"
+                    title="Sign Out to Welcome"
                     aria-label="Sign Out"
                     className="p-2 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                   >
@@ -1239,7 +1370,7 @@ export default function MobileSafetyApp() {
                       className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span>Log Out & Switch Role</span>
+                      <span>Log Out to Welcome Screen</span>
                     </button>
                   </div>
 
