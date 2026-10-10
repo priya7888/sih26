@@ -623,13 +623,6 @@ export default function MobileSafetyApp() {
                   <ArrowLeft className="w-4 h-4" />
                   <span>Welcome Screen</span>
                 </button>
-
-                <div className="flex items-center gap-1.5">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
-                    <Shield className="w-3.5 h-3.5 fill-white" />
-                  </div>
-                  <span className="text-xs font-black text-slate-900">SafetyPulse</span>
-                </div>
               </div>
 
               <div>
@@ -813,15 +806,10 @@ export default function MobileSafetyApp() {
             {/* TOP HEADER: USER GREETING & LOGOUT BUTTON */}
             <section aria-label="App Navigation Header" className="bg-white px-5 pt-3 pb-3 border-b border-slate-100 sticky top-7 z-30">
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-green-600 flex items-center justify-center text-white shadow-sm shadow-emerald-500/30">
-                    <Shield className="w-5 h-5 fill-white" />
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-base font-black tracking-tight text-slate-900">Safety</span>
-                    <span className="text-base font-black tracking-tight text-emerald-600">Pulse</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mb-2" />
-                  </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-base font-black tracking-tight text-slate-900">Safety</span>
+                  <span className="text-base font-black tracking-tight text-emerald-600">Pulse</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mb-2" />
                 </div>
 
                 <div className="flex items-center gap-1">
