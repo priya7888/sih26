@@ -21,6 +21,7 @@ import {
   User,
   Shield,
   ShieldAlert,
+  ShieldCheck,
   Flame,
   ChevronRight,
   X,
