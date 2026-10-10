@@ -45,7 +45,7 @@ import {
   getStoreState, 
   autoPersistToTotalRecords 
 } from '../../services/safetyStore';
-import aiWelcomeHero from '../../assets/ai_welcome_hero.jpg';
+import safetyTeamWelcome from '../../assets/safety_team_welcome.jpg';
 
 // Department list for response tasks including Ambulance
 const DEPARTMENTS = [
@@ -546,9 +546,7 @@ export default function MobileSafetyApp() {
       <main className={`w-full ${isPhoneFrame ? 'sm:max-w-[400px] sm:rounded-[46px] sm:border-[9px] sm:border-slate-900 sm:shadow-2xl sm:shadow-slate-400/50' : 'max-w-xl sm:rounded-2xl'} min-h-screen sm:min-h-[820px] bg-[#F8FAFC] flex flex-col relative overflow-hidden transition-all duration-200`}>
         
         {/* iOS STATUS BAR & DYNAMIC ISLAND */}
-        <div className={`pt-2 px-6 pb-1 flex items-center justify-between text-[11px] font-semibold sticky top-0 z-40 ${
-          screenMode === 'welcome' ? 'bg-[#09111E] text-slate-300' : 'bg-white text-slate-900'
-        }`}>
+        <div className="pt-2 px-6 pb-1 flex items-center justify-between text-[11px] font-semibold sticky top-0 z-40 bg-white text-slate-900">
           <span className="font-mono tracking-tight">9:41</span>
           
           <div className="w-24 h-5 bg-black rounded-full flex items-center justify-center border border-slate-800/60 shadow-inner">
@@ -558,101 +556,95 @@ export default function MobileSafetyApp() {
 
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold">5G</span>
-            <div className="w-5 h-2.5 border border-current rounded-xs p-0.5 flex items-center">
-              <div className="w-3.5 h-1.5 bg-current rounded-2xs" />
+            <div className="w-5 h-2.5 border border-slate-700 rounded-xs p-0.5 flex items-center">
+              <div className="w-3.5 h-1.5 bg-slate-900 rounded-2xs" />
             </div>
           </div>
         </div>
 
         {/* ============================================================ */}
-        {/* 1. WELCOME ONBOARDING SPLASH SCREEN (FIRST PAGE BEFORE LOGIN) */}
+        {/* 1. WELCOME ONBOARDING SPLASH SCREEN (CLEAN WHITE AESTHETIC) */}
         {/* ============================================================ */}
         {screenMode === 'welcome' && (
-          <div className="flex-1 bg-[#09111E] text-slate-100 flex flex-col justify-between px-6 py-4 animate-fadeIn relative overflow-hidden">
+          <div className="flex-1 bg-white text-slate-900 flex flex-col justify-between px-6 py-4 animate-fadeIn relative overflow-hidden">
             
-            {/* Subtle background ambient glow circles */}
-            <div className="absolute top-1/4 -left-20 w-56 h-56 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-1/3 -right-20 w-64 h-64 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-
-            {/* Top Minimal Brand & Status Badge */}
+            {/* Top Brand Header */}
             <div className="flex items-center justify-between z-10 pt-1">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
-                  <Shield className="w-4 h-4 text-white fill-white" />
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-green-600 flex items-center justify-center text-white shadow-sm shadow-emerald-500/30">
+                  <Shield className="w-5 h-5 fill-white" />
                 </div>
-                <span className="text-sm font-black tracking-tight text-white">SafetyPulse</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-base font-black tracking-tight text-slate-900">Safety</span>
+                  <span className="text-base font-black tracking-tight text-emerald-600">Pulse</span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-mono text-cyan-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                <span>AI SIF RADAR</span>
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-700">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>AI ACTIVE</span>
               </div>
             </div>
 
-            {/* HERO VISUAL CONTAINER */}
-            <div className="my-auto py-2 flex flex-col items-center text-center z-10">
+            {/* HERO VISUAL CONTAINER (MALE & FEMALE SAFETY TEAM) */}
+            <div className="my-auto py-1 flex flex-col items-center text-center z-10">
               
-              <div className="relative w-full max-w-[290px] aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl shadow-cyan-950/60 border border-cyan-500/30 group">
+              <div className="relative w-full max-w-[280px] aspect-[4/5] rounded-3xl overflow-hidden shadow-lg shadow-slate-200/80 border border-slate-100 group bg-slate-50">
                 <img 
-                  src={aiWelcomeHero} 
-                  alt="AI Safety Intelligence Shield" 
-                  className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700"
+                  src={safetyTeamWelcome} 
+                  alt="Industrial Safety Team (Male and Female)" 
+                  className="w-full h-full object-cover object-top transform group-hover:scale-105 transition-transform duration-500"
                 />
                 
-                {/* Holographic Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#09111E] via-transparent to-transparent opacity-80" />
-                
-                {/* Floating Live AI Badge */}
-                <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 flex items-center justify-between text-left">
+                {/* Floating Safety Badge */}
+                <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-100 shadow-sm flex items-center justify-between text-left">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
-                      <Cpu className="w-4 h-4 animate-pulse" />
+                    <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <ShieldCheck className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-white block">Precursor Neural Guard</span>
-                      <span className="text-[9px] text-cyan-300 font-mono">Real-time Energy Scan</span>
+                      <span className="text-[10px] font-bold text-slate-900 block leading-tight">Field Safety Team</span>
+                      <span className="text-[9px] text-slate-500 font-medium">Ready for Response</span>
                     </div>
                   </div>
-                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    PROTECTED
+                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    ONLINE
                   </span>
                 </div>
               </div>
 
               {/* Title & Tagline */}
-              <div className="mt-4 space-y-1">
-                <h1 className="text-xl font-black text-white tracking-tight leading-tight">
-                  SafetyPulse AI
+              <div className="mt-3.5 space-y-1">
+                <h1 className="text-xl font-black text-slate-900 tracking-tight leading-tight">
+                  SafetyPulse
                 </h1>
-                <p className="text-xs text-slate-300 font-medium max-w-[280px]">
-                  Predictive Hazard Intelligence. Zero Fatalities.
+                <p className="text-xs text-slate-600 font-medium max-w-[270px] leading-relaxed">
+                  Safety First, Always. AI-Powered Field Intelligence & Precursor Detection.
                 </p>
               </div>
 
-              {/* 3 Quick Value Badges */}
-              <div className="flex items-center justify-center gap-2 mt-3 text-[10px] text-slate-400 font-medium">
-                <span className="flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-amber-400" /> SIF AI
+              {/* Feature Chips */}
+              <div className="flex items-center justify-center gap-2 mt-2.5 text-[10px] text-slate-500 font-semibold">
+                <span className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">
+                  <Zap className="w-3 h-3 text-amber-500" /> SIF AI
                 </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Mic className="w-3 h-3 text-cyan-400" /> 3 Languages
+                <span className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">
+                  <Mic className="w-3 h-3 text-blue-600" /> 3 Languages
                 </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Ambulance className="w-3 h-3 text-rose-400" /> 7 Teams
+                <span className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">
+                  <Ambulance className="w-3 h-3 text-emerald-600" /> 7 Teams
                 </span>
               </div>
 
             </div>
 
             {/* BOTTOM ACTION BUTTONS */}
-            <div className="space-y-2.5 z-10 pb-2">
+            <div className="space-y-2 z-10 pb-1">
               
-              {/* PRIMARY CTA: GET STARTED / LOG IN */}
+              {/* PRIMARY CTA: GET STARTED (ROYAL BLUE PILL) */}
               <button
                 onClick={() => setScreenMode('login')}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:brightness-110 active:scale-[0.98] text-white font-bold text-sm tracking-wide shadow-lg shadow-blue-600/40 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm tracking-wide shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <span>Get Started / Sign In</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
@@ -664,13 +656,13 @@ export default function MobileSafetyApp() {
                   setScreenMode('app');
                   setActiveTab('alerts');
                 }}
-                className="w-full py-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 text-rose-400 text-xs font-semibold flex items-center justify-center gap-1.5 border border-rose-500/20 transition-colors"
+                className="w-full py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center justify-center gap-1.5 border border-rose-200 transition-colors"
               >
-                <Flame className="w-3.5 h-3.5 animate-pulse" />
+                <Flame className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
                 <span>Emergency SOS Hotline & Bypass</span>
               </button>
 
-              <p className="text-[10px] text-slate-500 text-center font-mono">
+              <p className="text-[10px] text-slate-400 text-center font-medium">
                 Oil India Limited · Industrial Safety Operations
               </p>
 
