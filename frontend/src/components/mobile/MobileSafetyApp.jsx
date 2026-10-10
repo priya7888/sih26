@@ -895,11 +895,21 @@ export default function MobileSafetyApp() {
             {/* TOP HEADER: USER GREETING & LOGOUT BUTTON */}
             <section aria-label="App Navigation Header" className="bg-white px-5 pt-3 pb-3 border-b border-slate-100 sticky top-7 z-30">
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1">
-                  <span className="text-base font-black tracking-tight text-slate-900">Safety</span>
-                  <span className="text-base font-black tracking-tight text-emerald-600">Pulse</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mb-2" />
-                </div>
+                {/* Minimalist App Logo Button (1-Tap Navigates to Dashboard) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('home')}
+                  title="Return to Dashboard"
+                  aria-label="Return to Dashboard"
+                  className="flex items-center gap-2 px-1 py-0.5 rounded-xl hover:bg-slate-100 active:scale-95 transition-all cursor-pointer group"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center text-white shadow-xs group-hover:bg-emerald-600 transition-colors">
+                    <Activity className="w-4 h-4 text-white stroke-[2.5]" />
+                  </div>
+                  <span className="text-base font-black tracking-tight text-slate-900 group-hover:text-emerald-700 transition-colors">
+                    SafetyPulse
+                  </span>
+                </button>
 
                 <div className="flex items-center gap-1">
                   <button 
