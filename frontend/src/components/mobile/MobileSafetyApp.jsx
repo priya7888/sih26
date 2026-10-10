@@ -375,6 +375,27 @@ export default function MobileSafetyApp() {
     (currentUser?.email && currentUser.email.toLowerCase().includes('admin'))
   );
 
+  // Responder Role & Department State
+  const isResponder = Boolean(
+    currentUser?.role === 'RESPONDER' ||
+    selectedRole === 'RESPONDER' ||
+    (currentUser?.role_name && currentUser.role_name.toLowerCase().includes('responder')) ||
+    (currentUser?.email && (
+      currentUser.email.toLowerCase().includes('ambulance') ||
+      currentUser.email.toLowerCase().includes('mech') ||
+      currentUser.email.toLowerCase().includes('elec') ||
+      currentUser.email.toLowerCase().includes('fire')
+    ))
+  );
+
+  const responderDept = currentUser?.department || selectedResponderDept || 'MECHANICAL';
+  const [responderFilter, setResponderFilter] = useState('ALL'); // 'ALL' | 'SIF' | 'NON_SIF'
+  const [assignedTabFilter, setAssignedTabFilter] = useState('ALL'); // 'ALL' | 'IN_PROGRESS' | 'COMPLETED'
+  const [selectedResponderReportModal, setSelectedResponderReportModal] = useState(null);
+  const [completingReportModal, setCompletingReportModal] = useState(null);
+  const [completionNotes, setCompletionNotes] = useState('');
+  const [completionEvidenceNotes, setCompletionEvidenceNotes] = useState('');
+
   const [adminSelectedUnit, setAdminSelectedUnit] = useState('ALL');
 
   const [broadcastNotices, setBroadcastNotices] = useState(() => {
@@ -403,6 +424,35 @@ export default function MobileSafetyApp() {
   const userReportIds = new Set(reportedIncidents.map(r => r.id));
   const userAcceptedAlerts = tasks.filter(t => 
     (t.report_id && userReportIds.has(t.report_id)) && (t.status === 'ACCEPTED' || t.status === 'VERIFIED')
+  );
+
+  // Responder Department Eligibility & Metrics Calculation
+  const isReportEligibleForResponder = (report, dept) => {
+    if (!report) return false;
+    if (dept === 'ALL') return true;
+    const rDept = (report.assigned_department || '').toUpperCase();
+    const targetDept = (dept || '').toUpperCase();
+    if (rDept === targetDept) return true;
+    if (targetDept.includes('AMBULANCE') && (rDept.includes('AMBULANCE') || rDept.includes('MEDICAL'))) return true;
+    if (targetDept.includes('MECH') && rDept.includes('MECH')) return true;
+    if (targetDept.includes('ELEC') && rDept.includes('ELEC')) return true;
+    if (targetDept.includes('CIVIL') && rDept.includes('CIVIL')) return true;
+    if (targetDept.includes('RIG') && rDept.includes('RIG')) return true;
+    if (targetDept.includes('HAZ') && rDept.includes('HAZ')) return true;
+    return false;
+  };
+
+  const eligibleReports = reportedIncidents.filter(r => isReportEligibleForResponder(r, responderDept));
+  const newAvailableReports = eligibleReports.filter(r => !r.accepted_by_user_id && r.status !== 'Resolved' && r.status !== 'Closed');
+  const myAcceptedReports = reportedIncidents.filter(r => 
+    r.accepted_by_user_id === (currentUser?.id || currentUser?.email) || 
+    (r.accepted_by_name && currentUser?.full_name && r.accepted_by_name.includes(currentUser.full_name.split(' ')[0]))
+  );
+  const inProgressReports = myAcceptedReports.filter(r => 
+    r.workflow_status === 'IN_PROGRESS' || (r.status === 'In Progress' && r.workflow_status !== 'COMPLETED')
+  );
+  const completedReports = myAcceptedReports.filter(r => 
+    r.workflow_status === 'COMPLETED' || r.status === 'Resolved' || r.status === 'Closed' || r.status === 'VERIFIED'
   );
 
   // SOS Emergency State
@@ -556,7 +606,14 @@ export default function MobileSafetyApp() {
             localStorage.setItem('safetyai_user', JSON.stringify(res.user));
           } catch (e) {}
         }
-        setCurrentUser(res.user);
+        const isUserResp = selectedRole === 'RESPONDER' || res.user.role === 'RESPONDER' || Boolean(res.user.department && res.user.department !== 'FIELD_OPS' && !res.user.is_admin);
+        const resolvedUser = {
+          ...res.user,
+          role: isUserResp ? 'RESPONDER' : res.user.role || selectedRole,
+          role_name: isUserResp ? 'Response Specialist' : res.user.role_name || (selectedRole === 'ADMIN' ? 'Safety Administrator' : 'Field Worker'),
+          department: isUserResp ? (res.user.department || selectedResponderDept) : (res.user.department || 'FIELD_OPS')
+        };
+        setCurrentUser(resolvedUser);
         setScreenMode('app');
         setActiveTab('home');
       } else {
@@ -578,12 +635,43 @@ export default function MobileSafetyApp() {
       if (cleanEmail.includes('ambulance')) {
         userObj.full_name = 'Dr. Sunita (Ambulance Lead)';
         userObj.department = 'AMBULANCE_MEDICAL';
+        userObj.role = 'RESPONDER';
+        userObj.role_name = 'Ambulance & Medical Lead';
+        userObj.is_admin = false;
       } else if (cleanEmail.includes('mech')) {
         userObj.full_name = 'Marcus Sterling (Mechanical Lead)';
         userObj.department = 'MECHANICAL';
+        userObj.role = 'RESPONDER';
+        userObj.role_name = 'Mechanical Response Specialist';
+        userObj.is_admin = false;
+      } else if (cleanEmail.includes('elec')) {
+        userObj.full_name = 'David Thorne (Electrical Lead)';
+        userObj.department = 'ELECTRICAL';
+        userObj.role = 'RESPONDER';
+        userObj.role_name = 'Electrical Response Specialist';
+        userObj.is_admin = false;
+      } else if (cleanEmail.includes('fire') || cleanEmail.includes('hazmat')) {
+        userObj.full_name = 'Elena Rostova (Hazmat Lead)';
+        userObj.department = 'HAZMAT';
+        userObj.role = 'RESPONDER';
+        userObj.role_name = 'Emergency Hazmat Specialist';
+        userObj.is_admin = false;
+      } else if (cleanEmail.includes('civil')) {
+        userObj.full_name = 'Robert Chang (Civil Lead)';
+        userObj.department = 'CIVIL_STRUCTURAL';
+        userObj.role = 'RESPONDER';
+        userObj.role_name = 'Civil Structural Specialist';
+        userObj.is_admin = false;
+      } else if (cleanEmail.includes('rig')) {
+        userObj.full_name = 'Vikram Singh (Rigging Lead)';
+        userObj.department = 'RIGGING_LIFTING';
+        userObj.role = 'RESPONDER';
+        userObj.role_name = 'Rigging Response Specialist';
+        userObj.is_admin = false;
       } else if (cleanEmail.includes('admin')) {
         userObj.full_name = 'Eleanor Vance (HSE Admin)';
         userObj.role = 'ADMIN';
+        userObj.role_name = 'Safety Administrator';
         userObj.is_admin = true;
       }
 
@@ -1172,9 +1260,10 @@ export default function MobileSafetyApp() {
       }));
       fetchAnalyticsData();
 
-      // 4. Dispatch a real response task into active tasks radar
+      // 4. Dispatch a real response task into active tasks radar (Dual-dispatch to Admin & Responder)
       const newTask = {
         id: Date.now(),
+        report_id: newRecord.id,
         title: `Response: ${lifeSavingRule}`,
         description: `${activeText.slice(0, 80)}... — Action: ${recommendedAction}`,
         department: details.dept,
@@ -1185,6 +1274,20 @@ export default function MobileSafetyApp() {
         location: locDisplay
       };
       setTasks(prev => [newTask, ...prev]);
+
+      try {
+        await api.createResponseTask({
+          title: `Response: ${lifeSavingRule}`,
+          description: `${activeText.slice(0, 100)} — Action: ${recommendedAction}`,
+          department: details.dept,
+          priority: isSIF ? 'CRITICAL' : 'HIGH',
+          status: 'ASSIGNED',
+          report_id: newRecord.id,
+          location: locDisplay
+        });
+      } catch (e) {
+        console.warn('API createResponseTask fallback:', e);
+      }
 
       // 5. Update latest alert
       setLatestAlert({
@@ -1324,6 +1427,136 @@ export default function MobileSafetyApp() {
       text: `Incident reassigned to ${deptLabel}`
     });
     setTimeout(() => setActionNotice(null), 3000);
+  };
+
+  // Responder Action: Atomically Accept / Claim Report
+  const handleAcceptReport = async (reportId) => {
+    const stored = JSON.parse(localStorage.getItem('safetyai_active_reports') || '[]');
+    const target = stored.find(r => r.id === reportId) || reportedIncidents.find(r => r.id === reportId);
+    
+    if (target && target.accepted_by_user_id && target.accepted_by_user_id !== (currentUser?.id || currentUser?.email)) {
+      setActionNotice({
+        type: 'error',
+        text: `⚠️ Already claimed by ${target.accepted_by_name || 'another responder'}. List refreshed.`
+      });
+      setTimeout(() => setActionNotice(null), 3500);
+      return;
+    }
+
+    const responderName = currentUser?.full_name || 'Department Responder';
+    const responderId = currentUser?.id || currentUser?.email || 'resp-001';
+    const acceptedTimestamp = new Date().toISOString();
+
+    const updated = reportedIncidents.map(r => {
+      if (r.id === reportId) {
+        return {
+          ...r,
+          accepted_by_user_id: responderId,
+          accepted_by_name: responderName,
+          accepted_at: acceptedTimestamp,
+          workflow_status: 'ACCEPTED',
+          status: 'In Progress'
+        };
+      }
+      return r;
+    });
+
+    setReportedIncidents(updated);
+    try {
+      localStorage.setItem('safetyai_active_reports', JSON.stringify(updated));
+    } catch (e) {}
+
+    try {
+      const matchingTask = tasks.find(t => t.report_id === reportId);
+      if (matchingTask) {
+        await api.acceptResponseTask(matchingTask.id);
+        fetchTasks();
+      }
+    } catch (err) {
+      console.warn('Backend task accept sync:', err);
+    }
+
+    setActionNotice({
+      type: 'success',
+      text: `✅ Report #${reportId} claimed exclusively! Moved to My Assigned Reports.`
+    });
+    setTimeout(() => setActionNotice(null), 3000);
+  };
+
+  // Responder Action: Start Work on an Assigned Report
+  const handleStartWork = (reportId) => {
+    const updated = reportedIncidents.map(r => {
+      if (r.id === reportId) {
+        return {
+          ...r,
+          workflow_status: 'IN_PROGRESS',
+          status: 'In Progress',
+          started_at: new Date().toISOString()
+        };
+      }
+      return r;
+    });
+
+    setReportedIncidents(updated);
+    try {
+      localStorage.setItem('safetyai_active_reports', JSON.stringify(updated));
+    } catch (e) {}
+
+    setActionNotice({
+      type: 'success',
+      text: `⚡ Work started on report #${reportId}. Status updated to In Progress.`
+    });
+    setTimeout(() => setActionNotice(null), 3000);
+  };
+
+  // Responder Action: Mark as Completed with notes & sign-off
+  const handleCompleteReportSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!completingReportModal) return;
+
+    const reportId = completingReportModal.id;
+    const completedTimestamp = new Date().toISOString();
+
+    const updated = reportedIncidents.map(r => {
+      if (r.id === reportId) {
+        return {
+          ...r,
+          workflow_status: 'COMPLETED',
+          status: 'Resolved',
+          completed_at: completedTimestamp,
+          completion_notes: completionNotes.trim() || 'Corrective action implemented and verified by responder team.',
+          evidence_notes: completionEvidenceNotes.trim() || 'Physical barrier restored.'
+        };
+      }
+      return r;
+    });
+
+    setReportedIncidents(updated);
+    try {
+      localStorage.setItem('safetyai_active_reports', JSON.stringify(updated));
+    } catch (e) {}
+
+    try {
+      const matchingTask = tasks.find(t => t.report_id === reportId);
+      if (matchingTask) {
+        await api.submitTaskVerification(matchingTask.id, {
+          work_notes: completionNotes.trim() || 'Work completed by responder team.',
+          evidence_notes: completionEvidenceNotes.trim() || 'Physical barrier restored.'
+        });
+        fetchTasks();
+      }
+    } catch (err) {
+      console.warn('Backend task verification sync:', err);
+    }
+
+    setCompletingReportModal(null);
+    setCompletionNotes('');
+    setCompletionEvidenceNotes('');
+    setActionNotice({
+      type: 'success',
+      text: `🎉 Report #${reportId} completed! Safety barrier verified.`
+    });
+    setTimeout(() => setActionNotice(null), 3500);
   };
 
   // Admin Publish Plant Safety Directive / Broadcast
@@ -2182,6 +2415,209 @@ export default function MobileSafetyApp() {
                       </div>
 
                     </div>
+                  ) : isResponder ? (
+                    /* ================= RESPONDER COMMAND DASHBOARD ================= */
+                    <div className="space-y-4">
+                      {/* Department Command Header */}
+                      <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+                            🛠️ {responderDept.replace('_', ' ')} DISPATCH
+                          </span>
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-mono flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Shift Active
+                          </span>
+                        </div>
+                        <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                          Emergency &amp; Technical Response Command
+                        </h2>
+                        <p className="text-[11px] text-slate-500">
+                          Real-time dispatched incident containment, barrier restoration &amp; sign-off
+                        </p>
+                      </div>
+
+                      {/* Real-time 4-Card Metrics Grid (Calculated from Actual Reports) */}
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {/* 1. New Available Reports */}
+                        <div
+                          onClick={() => setActiveTab('available')}
+                          className="bg-white rounded-2xl p-3.5 border border-amber-200 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                              <Bell className="w-4 h-4" />
+                            </div>
+                            <span className="text-2xl font-black text-amber-600 tracking-tight font-mono">
+                              {newAvailableReports.length}
+                            </span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800">
+                            Available Reports
+                          </div>
+                          <div className="text-[10px] text-amber-700 font-medium">
+                            Awaiting Team Claim
+                          </div>
+                        </div>
+
+                        {/* 2. My Accepted Reports */}
+                        <div
+                          onClick={() => { setActiveTab('assigned'); setAssignedTabFilter('ALL'); }}
+                          className="bg-white rounded-2xl p-3.5 border border-blue-200 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                              <CheckSquare className="w-4 h-4" />
+                            </div>
+                            <span className="text-2xl font-black text-blue-700 tracking-tight font-mono">
+                              {myAcceptedReports.length}
+                            </span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800">
+                            My Accepted
+                          </div>
+                          <div className="text-[10px] text-blue-600 font-medium">
+                            Assigned to Shift
+                          </div>
+                        </div>
+
+                        {/* 3. In Progress */}
+                        <div
+                          onClick={() => { setActiveTab('assigned'); setAssignedTabFilter('IN_PROGRESS'); }}
+                          className="bg-white rounded-2xl p-3.5 border border-purple-200 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                              <Clock className="w-4 h-4" />
+                            </div>
+                            <span className="text-2xl font-black text-purple-700 tracking-tight font-mono">
+                              {inProgressReports.length}
+                            </span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800">
+                            In Progress
+                          </div>
+                          <div className="text-[10px] text-purple-600 font-medium">
+                            Active Field Action
+                          </div>
+                        </div>
+
+                        {/* 4. Completed */}
+                        <div
+                          onClick={() => { setActiveTab('assigned'); setAssignedTabFilter('COMPLETED'); }}
+                          className="bg-white rounded-2xl p-3.5 border border-emerald-200 shadow-2xs hover:shadow-xs transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                              <ShieldCheck className="w-4 h-4" />
+                            </div>
+                            <span className="text-2xl font-black text-emerald-700 tracking-tight font-mono">
+                              {completedReports.length}
+                            </span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800">
+                            Completed
+                          </div>
+                          <div className="text-[10px] text-emerald-600 font-medium">
+                            Verified Resolved
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick Navigation Shortcuts */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('available')}
+                          className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-all active:scale-95"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Available Reports ({newAvailableReports.length})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('assigned')}
+                          className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-all active:scale-95"
+                        >
+                          <CheckSquare className="w-3.5 h-3.5" />
+                          <span>My Assignments ({myAcceptedReports.length})</span>
+                        </button>
+                      </div>
+
+                      {/* Priority Available Queue Preview */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                            <Bell className="w-3.5 h-3.5 text-amber-500" />
+                            <span>New Dispatched Reports</span>
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('available')}
+                            className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
+                          >
+                            View All ({newAvailableReports.length}) →
+                          </button>
+                        </div>
+
+                        {newAvailableReports.length > 0 ? (
+                          <div className="space-y-2">
+                            {newAvailableReports.slice(0, 2).map(report => (
+                              <div
+                                key={`prev-${report.id}`}
+                                className="bg-white rounded-2xl p-3.5 border border-amber-200/90 shadow-2xs space-y-2.5"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`px-2 py-0.5 rounded-full font-black text-[9px] font-mono tracking-wider ${
+                                        report.is_sif ? 'bg-rose-500 text-white' : 'bg-blue-100 text-blue-800'
+                                      }`}>
+                                        {report.is_sif ? '🚨 SIF' : 'NON-SIF'}
+                                      </span>
+                                      <span className="text-[10px] font-bold text-slate-500">
+                                        {report.facility_unit || report.location}
+                                      </span>
+                                    </div>
+                                    <h4 className="text-xs font-bold text-slate-900 mt-1">
+                                      {report.title}
+                                    </h4>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    {report.created_at ? new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-medium">
+                                  {report.description}
+                                </p>
+                                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAcceptReport(report.id)}
+                                    className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Accept Report</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedResponderReportModal(report)}
+                                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] cursor-pointer transition-colors"
+                                  >
+                                    Details
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 text-center space-y-1">
+                            <p className="text-xs font-bold text-slate-700">No Unclaimed Dispatches</p>
+                            <p className="text-[11px] text-slate-400">All reports routed to your team have been accepted or resolved.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   ) : (
                     /* ================= WORKER OVERVIEW (UNCHANGED) ================= */
                     <>
@@ -2323,6 +2759,321 @@ export default function MobileSafetyApp() {
                     </>
                   )}
 
+                </div>
+              )}
+
+              {/* TAB: AVAILABLE REPORTS (FOR RESPONDER) */}
+              {activeTab === 'available' && (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                        <Bell className="w-4 h-4 text-amber-500" />
+                        <span>Available Dispatches</span>
+                      </h2>
+                      <p className="text-[11px] text-slate-500">
+                        Reports routed to {responderDept.replace('_', ' ')} awaiting responder acceptance
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 font-mono">
+                      {newAvailableReports.length} Unclaimed
+                    </span>
+                  </div>
+
+                  {/* Filter Chips: All | SIF | Non-SIF */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+                    {[
+                      { id: 'ALL', label: `All Available (${newAvailableReports.length})` },
+                      { id: 'SIF', label: `🚨 SIF Only (${newAvailableReports.filter(r => r.is_sif).length})` },
+                      { id: 'NON_SIF', label: `Non-SIF (${newAvailableReports.filter(r => !r.is_sif).length})` }
+                    ].map(chip => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        onClick={() => setResponderFilter(chip.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 border transition-all cursor-pointer ${
+                          responderFilter === chip.id
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Available Reports Feed */}
+                  <div className="space-y-3">
+                    {newAvailableReports
+                      .filter(r => {
+                        if (responderFilter === 'SIF') return r.is_sif;
+                        if (responderFilter === 'NON_SIF') return !r.is_sif;
+                        return true;
+                      })
+                      .map(report => (
+                        <div
+                          key={`avail-${report.id}`}
+                          className="bg-white rounded-2xl p-4 border border-amber-200/90 shadow-2xs space-y-3 relative overflow-hidden"
+                        >
+                          <div className={`absolute top-0 left-0 right-0 h-1 ${report.is_sif ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                          
+                          {/* Top Row: Category, SIF badge & Time */}
+                          <div className="flex items-start justify-between gap-2 pt-0.5">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full uppercase">
+                                  {report.category || 'Incident'}
+                                </span>
+                                <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase ${
+                                  report.is_sif ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {report.is_sif ? '🚨 SIF PRECURSOR' : 'NON-SIF'}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  {report.facility_unit || report.location}
+                                </span>
+                              </div>
+                              <h3 className="text-xs font-bold text-slate-900 mt-1.5 leading-snug">
+                                {report.title || report.report_name}
+                              </h3>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                              {report.created_at ? new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+                            </span>
+                          </div>
+
+                          {/* Voice Transcription Description */}
+                          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed">
+                            <span className="text-[10px] font-bold text-slate-400 font-mono uppercase block mb-0.5">
+                              Reported Observation:
+                            </span>
+                            {report.description}
+                          </div>
+
+                          {/* Energy Vector & Recommended Action */}
+                          {report.energy_vector && (
+                            <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <span className="font-bold text-slate-700">Vector:</span>
+                              <span className="text-slate-600 truncate">{report.energy_vector}</span>
+                            </div>
+                          )}
+
+                          {/* Action Buttons: Accept Report vs Leave It vs Details */}
+                          <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                            <button
+                              type="button"
+                              onClick={() => handleAcceptReport(report.id)}
+                              className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Accept Report</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionNotice({
+                                  type: 'success',
+                                  text: `Report #${report.id} remains in available pool.`
+                                });
+                                setTimeout(() => setActionNotice(null), 2500);
+                              }}
+                              className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                            >
+                              Leave It
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedResponderReportModal(report)}
+                              className="py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs cursor-pointer transition-colors"
+                            >
+                              Details
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                    {newAvailableReports.length === 0 && (
+                      <div className="py-14 px-6 rounded-2xl bg-white border border-slate-100 shadow-2xs text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center">
+                          <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">No Unclaimed Dispatches</h3>
+                        <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                          All incidents assigned to your department are currently claimed or resolved. New dispatches from workers will appear here automatically.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: MY ASSIGNED REPORTS (FOR RESPONDER) */}
+              {activeTab === 'assigned' && (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                        <CheckSquare className="w-4 h-4 text-blue-600" />
+                        <span>My Assigned Reports</span>
+                      </h2>
+                      <p className="text-[11px] text-slate-500">
+                        Operational work orders and corrective actions assigned to your shift
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 font-mono">
+                      {myAcceptedReports.length} Total
+                    </span>
+                  </div>
+
+                  {/* Sub-Filter Tabs: All | In Progress | Completed */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+                    {[
+                      { id: 'ALL', label: `All Assigned (${myAcceptedReports.length})` },
+                      { id: 'IN_PROGRESS', label: `⚡ In Progress (${inProgressReports.length})` },
+                      { id: 'COMPLETED', label: `✅ Completed (${completedReports.length})` }
+                    ].map(chip => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        onClick={() => setAssignedTabFilter(chip.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 border transition-all cursor-pointer ${
+                          assignedTabFilter === chip.id
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Assigned Reports Feed */}
+                  <div className="space-y-3">
+                    {myAcceptedReports
+                      .filter(r => {
+                        if (assignedTabFilter === 'IN_PROGRESS') return r.workflow_status === 'IN_PROGRESS' || (r.status === 'In Progress' && r.workflow_status !== 'COMPLETED');
+                        if (assignedTabFilter === 'COMPLETED') return r.workflow_status === 'COMPLETED' || r.status === 'Resolved' || r.status === 'Closed' || r.status === 'VERIFIED';
+                        return true;
+                      })
+                      .map(report => (
+                        <div
+                          key={`assigned-${report.id}`}
+                          className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3 relative overflow-hidden"
+                        >
+                          <div className={`absolute top-0 left-0 right-0 h-1 ${
+                            report.workflow_status === 'COMPLETED' || report.status === 'Resolved'
+                              ? 'bg-emerald-500'
+                              : report.workflow_status === 'IN_PROGRESS'
+                              ? 'bg-purple-500'
+                              : 'bg-blue-500'
+                          }`} />
+
+                          {/* Top Row: Status, SIF Badge & Location */}
+                          <div className="flex items-start justify-between gap-2 pt-0.5">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase ${
+                                  report.workflow_status === 'COMPLETED' || report.status === 'Resolved'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : report.workflow_status === 'IN_PROGRESS'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {report.workflow_status === 'COMPLETED' || report.status === 'Resolved'
+                                    ? '✅ COMPLETED'
+                                    : report.workflow_status === 'IN_PROGRESS'
+                                    ? '⚡ IN PROGRESS'
+                                    : '📌 CLAIMED'}
+                                </span>
+                                <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase ${
+                                  report.is_sif ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {report.is_sif ? '🚨 SIF' : 'NON-SIF'}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  {report.facility_unit || report.location}
+                                </span>
+                              </div>
+                              <h3 className="text-xs font-bold text-slate-900 mt-1.5 leading-snug">
+                                {report.title || report.report_name}
+                              </h3>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                              {report.accepted_at ? new Date(report.accepted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Claimed'}
+                            </span>
+                          </div>
+
+                          {/* Description */}
+                          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                            {report.description}
+                          </p>
+
+                          {/* Work Notes / Completion Notes if any */}
+                          {report.completion_notes && (
+                            <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-xs text-emerald-900 space-y-0.5">
+                              <span className="text-[10px] font-bold uppercase font-mono text-emerald-700 block">
+                                Completion Sign-Off Note:
+                              </span>
+                              <p className="text-[11px] leading-relaxed">{report.completion_notes}</p>
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                            {report.workflow_status !== 'COMPLETED' && report.status !== 'Resolved' && (
+                              <>
+                                {report.workflow_status !== 'IN_PROGRESS' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartWork(report.id)}
+                                    className="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
+                                  >
+                                    <Clock className="w-3.5 h-3.5" />
+                                    <span>Start Work</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setCompletingReportModal(report)}
+                                    className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Mark as Completed</span>
+                                  </button>
+                                )}
+                              </>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedResponderReportModal(report)}
+                              className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                            >
+                              Report Details
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                    {myAcceptedReports.length === 0 && (
+                      <div className="py-14 px-6 rounded-2xl bg-white border border-slate-100 shadow-2xs text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center">
+                          <CheckSquare className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">No Assigned Reports Yet</h3>
+                        <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                          You have not claimed any reports yet. Go to the Available tab to review and accept dispatches routed to your team.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('available')}
+                          className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-xs cursor-pointer"
+                        >
+                          Check Available Reports
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -2926,8 +3677,141 @@ export default function MobileSafetyApp() {
                     </div>
                   )}
 
-                  {/* WORKER DIRECTIVES & ACTION ALERTS (when !isAdmin) */}
-                  {!isAdmin && (
+                  {/* RESPONDER DISPATCH ALERTS STREAM (when isResponder) */}
+                  {isResponder && (
+                    <div className="space-y-3">
+                      {/* Top Header */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                            <Bell className="w-4 h-4 text-blue-600" />
+                            <span>Responder Dispatch Alerts</span>
+                          </h2>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Live incident dispatches routed to {responderDept.replace('_', ' ')}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 font-mono">
+                          {newAvailableReports.length} Unclaimed
+                        </span>
+                      </div>
+
+                      {/* Active Safety Directives from Command / Admin */}
+                      {broadcastNotices.length > 0 && (
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1">
+                            <Radio className="w-3.5 h-3.5 text-amber-500" />
+                            Command Directives ({broadcastNotices.length})
+                          </span>
+                          {broadcastNotices.map(notice => (
+                            <div
+                              key={notice.id}
+                              className="bg-white rounded-2xl p-4 border border-amber-300/80 shadow-2xs space-y-2 relative overflow-hidden"
+                            >
+                              <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
+                              <div className="flex items-start justify-between gap-2 pt-1">
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-black font-mono">
+                                      {notice.priority}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-500">
+                                      {notice.sector}
+                                    </span>
+                                  </div>
+                                  <h3 className="text-xs font-bold text-slate-900 mt-1">{notice.title}</h3>
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono shrink-0">{notice.timestamp}</span>
+                              </div>
+                              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                                {notice.message}
+                              </p>
+                              <div className="pt-1 border-t border-slate-100 text-[10px] text-slate-400">
+                                <span>Issued by: <strong className="text-slate-600">{notice.sender}</strong></span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Live Dispatches Stream */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                          Department Dispatches
+                        </span>
+
+                        {newAvailableReports.length > 0 ? (
+                          <div className="space-y-2.5">
+                            {newAvailableReports.map(report => (
+                              <div
+                                key={`resp-alert-${report.id}`}
+                                className="bg-white rounded-2xl p-4 border border-amber-200/90 shadow-2xs space-y-2.5"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`px-2 py-0.5 rounded-full font-black text-[9px] font-mono tracking-wider ${
+                                        report.is_sif ? 'bg-rose-500 text-white' : 'bg-blue-100 text-blue-800'
+                                      }`}>
+                                        {report.is_sif ? '🚨 SIF PRECURSOR' : 'STANDARD OBSERVATION'}
+                                      </span>
+                                      <span className="text-[10px] font-bold text-slate-500">
+                                        {report.facility_unit || report.location}
+                                      </span>
+                                    </div>
+                                    <h4 className="text-xs font-bold text-slate-900">
+                                      {report.title}
+                                    </h4>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    {report.created_at ? new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+                                  </span>
+                                </div>
+
+                                <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                  {report.description}
+                                </p>
+
+                                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAcceptReport(report.id)}
+                                    className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Accept Dispatch</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedResponderReportModal(report)}
+                                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] cursor-pointer transition-colors"
+                                  >
+                                    Details
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="py-12 px-6 rounded-2xl bg-white border border-slate-100 shadow-2xs text-center space-y-3">
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center">
+                              <CheckCircle2 className="w-6 h-6" />
+                            </div>
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-bold text-slate-800">All Clear — No Pending Dispatches</h3>
+                              <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                                No unassigned safety incidents currently require response from the {responderDept.replace('_', ' ')} unit.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* WORKER DIRECTIVES & ACTION ALERTS (when !isAdmin && !isResponder) */}
+                  {!isAdmin && !isResponder && (
                     <>
                       {broadcastNotices.length > 0 && (
                     <div className="space-y-2">
@@ -3019,7 +3903,7 @@ export default function MobileSafetyApp() {
                         ))}
                     </div>
                   ) : (
-                    /* Clean Empty State as Responder Platform is Not Yet Integrated */
+                    /* Clean Empty State */
                     <div className="py-14 px-6 rounded-2xl bg-white border border-slate-100 shadow-2xs text-center space-y-3.5">
                       <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 text-slate-400 mx-auto flex items-center justify-center">
                         <Bell className="w-6 h-6 text-slate-400" />
@@ -3029,11 +3913,6 @@ export default function MobileSafetyApp() {
                         <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
                           When emergency response departments (Ambulance, Mechanical, Electrical) accept and action your submitted reports, confirmation alerts will appear here.
                         </p>
-                      </div>
-                      <div className="pt-1">
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold font-mono text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
-                          <span>Awaiting Responder Platform Integration</span>
-                        </span>
                       </div>
                     </div>
                   )}
@@ -3055,10 +3934,65 @@ export default function MobileSafetyApp() {
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm">{currentUser?.full_name}</h3>
                         <p className="text-xs text-slate-500">{currentUser?.email}</p>
-                        <p className="text-[10px] text-emerald-600 font-medium">Role: {currentUser?.role_name || currentUser?.role}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                            {isResponder ? `🛠️ ${responderDept.replace('_', ' ')}` : isAdmin ? '🛡️ Administrator' : '👷 Field Worker'}
+                          </span>
+                          {isResponder && (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-mono">
+                              ● Shift Active
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* RESPONDER SHIFT SUMMARY (when isResponder) */}
+                  {isResponder && (
+                    <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
+                          Shift Incident Metrics
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">Today</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80">
+                          <div className="text-[10px] font-bold text-amber-800">Unclaimed Available</div>
+                          <div className="text-lg font-black text-amber-700 font-mono">{newAvailableReports.length}</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/80">
+                          <div className="text-[10px] font-bold text-blue-800">My Accepted</div>
+                          <div className="text-lg font-black text-blue-700 font-mono">{myAcceptedReports.length}</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200/80">
+                          <div className="text-[10px] font-bold text-purple-800">In Progress</div>
+                          <div className="text-lg font-black text-purple-700 font-mono">{inProgressReports.length}</div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80">
+                          <div className="text-[10px] font-bold text-emerald-800">Completed</div>
+                          <div className="text-lg font-black text-emerald-700 font-mono">{completedReports.length}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('available')}
+                          className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition-colors"
+                        >
+                          Available Reports
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('assigned')}
+                          className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs cursor-pointer transition-colors"
+                        >
+                          Assigned Reports
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* LOGOUT & SWITCH ROLE BUTTON */}
                   <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs space-y-3">
@@ -3067,7 +4001,7 @@ export default function MobileSafetyApp() {
                     </span>
                     <button
                       onClick={handleLogout}
-                      className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                      className="w-full py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
                     >
                       <LogOut className="w-4 h-4" />
                       <span>Log Out to Welcome Screen</span>
@@ -3898,6 +4832,192 @@ export default function MobileSafetyApp() {
               </div>
             )}
 
+            {/* RESPONDER: MARK AS COMPLETED MODAL */}
+            {completingReportModal && (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex flex-col justify-end animate-fadeIn">
+                <div className="bg-white rounded-t-[32px] p-5 space-y-4 max-h-[92%] overflow-y-auto custom-scrollbar shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-900 leading-tight">
+                          Mark Action as Completed
+                        </h3>
+                        <p className="text-[10px] text-slate-500 font-mono">
+                          Report #{completingReportModal.id} • {completingReportModal.facility_unit || completingReportModal.location}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCompletingReportModal(null)}
+                      className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCompleteReportSubmit} className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase font-mono block">
+                        Work Done &amp; Corrective Notes *
+                      </label>
+                      <textarea
+                        value={completionNotes}
+                        onChange={(e) => setCompletionNotes(e.target.value)}
+                        placeholder="Detail corrective actions implemented (e.g., Flange gasket replaced, torqued to spec, helium leak test passed)..."
+                        rows={3}
+                        required
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase font-mono block">
+                        Evidence &amp; Physical Verification
+                      </label>
+                      <textarea
+                        value={completionEvidenceNotes}
+                        onChange={(e) => setCompletionEvidenceNotes(e.target.value)}
+                        placeholder="Observations, pressure readings, certified barrier restoration confirmation..."
+                        rows={2}
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="submit"
+                        className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/25 cursor-pointer transition-all"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Confirm Completion &amp; Sign-Off</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCompletingReportModal(null)}
+                        className="py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* RESPONDER: REPORT FULL DETAILS MODAL */}
+            {selectedResponderReportModal && (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex flex-col justify-end animate-fadeIn">
+                <div className="bg-white rounded-t-[32px] p-5 space-y-4 max-h-[92%] overflow-y-auto custom-scrollbar shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-mono font-bold text-blue-600">
+                          {selectedResponderReportModal.report_number || `REP-${selectedResponderReportModal.id}`}
+                        </span>
+                        <h3 className="text-xs font-bold text-slate-900 leading-tight">
+                          {selectedResponderReportModal.title || selectedResponderReportModal.report_name}
+                        </h3>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedResponderReportModal(null)}
+                      className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    {/* Status & SIF Badges */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase ${
+                        selectedResponderReportModal.is_sif ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {selectedResponderReportModal.is_sif ? '🚨 SIF PRECURSOR' : 'NON-SIF'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold font-mono uppercase">
+                        {selectedResponderReportModal.category || 'Incident'}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-500 font-mono">
+                        {selectedResponderReportModal.facility_unit || selectedResponderReportModal.location}
+                      </span>
+                    </div>
+
+                    {/* Transcribed Description */}
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase font-mono block">
+                        Transcribed Field Observation:
+                      </span>
+                      <p className="text-slate-700 leading-relaxed font-medium">
+                        {selectedResponderReportModal.description}
+                      </p>
+                    </div>
+
+                    {/* Energy Vector & LSR */}
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Energy Vector</span>
+                        <span className="text-slate-800 font-bold">{selectedResponderReportModal.energy_vector || 'Kinetic / Pressure Vector'}</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Life-Saving Rule</span>
+                        <span className="text-slate-800 font-bold">{selectedResponderReportModal.life_saving_rule || 'Energy Isolation (LOTO)'}</span>
+                      </div>
+                    </div>
+
+                    {/* Submitter & Location */}
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Reported By:</span>
+                        <span className="text-slate-800 font-bold">{selectedResponderReportModal.reported_by || 'Field Worker'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Assigned Team:</span>
+                        <span className="text-blue-700 font-bold font-mono">{selectedResponderReportModal.assigned_department_label || selectedResponderReportModal.assigned_department || 'Mechanical'}</span>
+                      </div>
+                    </div>
+
+                    {/* Action buttons inside details modal */}
+                    {!selectedResponderReportModal.accepted_by_user_id ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const id = selectedResponderReportModal.id;
+                          setSelectedResponderReportModal(null);
+                          handleAcceptReport(id);
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Accept &amp; Claim This Report</span>
+                      </button>
+                    ) : selectedResponderReportModal.workflow_status === 'IN_PROGRESS' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const rep = selectedResponderReportModal;
+                          setSelectedResponderReportModal(null);
+                          setCompletingReportModal(rep);
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Mark as Completed</span>
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 6. VOICE BASED SEARCH & INTELLIGENCE MODAL */}
             {showVoiceSearchModal && (
               <div className="fixed inset-0 sm:absolute bg-black/60 backdrop-blur-xs z-50 flex flex-col justify-end sm:justify-center p-0 sm:p-3 animate-fadeIn">
@@ -4185,94 +5305,189 @@ export default function MobileSafetyApp() {
             />
 
             {/* BOTTOM NAVIGATION BAR */}
-            <nav aria-label="Main Navigation" className="h-18 bg-white border-t border-slate-100 px-3 flex items-center justify-between sticky bottom-0 z-40 shadow-lg shadow-slate-200/50">
-              
-              <button
-                onClick={() => setActiveTab('home')}
-                className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
-                  activeTab === 'home' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                <Home className="w-5 h-5 stroke-[2.2]" />
-                <span className="text-[10px] mt-1 font-medium">Home</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('incidents')}
-                className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
-                  activeTab === 'incidents' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                <AlertTriangle className="w-5 h-5 stroke-[2.2]" />
-                <span className="text-[10px] mt-1 font-medium">Incidents</span>
-              </button>
-
-              {isAdmin ? (
-                /* Admin Dedicated Tasks Sign-off Tab */
+            {isResponder ? (
+              /* RESPONDER DEDICATED BOTTOM NAVIGATION */
+              <nav aria-label="Responder Navigation" className="h-18 bg-white border-t border-slate-100 px-3 flex items-center justify-between sticky bottom-0 z-40 shadow-lg shadow-slate-200/50">
+                
+                {/* 1. Overview */}
                 <button
-                  onClick={() => setActiveTab('tasks')}
+                  type="button"
+                  onClick={() => setActiveTab('home')}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
-                    activeTab === 'tasks' ? 'text-amber-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+                    activeTab === 'home' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Home className="w-5 h-5 stroke-[2.2]" />
+                  <span className="text-[10px] mt-1 font-medium">Overview</span>
+                </button>
+
+                {/* 2. Available Reports Queue */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('available')}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                    activeTab === 'available' ? 'text-amber-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <div className="relative">
+                    <FileText className="w-5 h-5 stroke-[2.2]" />
+                    {newAvailableReports.length > 0 && (
+                      <span className="absolute -top-1 -right-2 min-w-4 h-4 px-1 bg-amber-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-2xs font-mono">
+                        {newAvailableReports.length}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] mt-1 font-medium">Available</span>
+                </button>
+
+                {/* 3. My Assigned Reports */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('assigned');
+                    setAssignedTabFilter('ALL');
+                  }}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                    activeTab === 'assigned' ? 'text-purple-600 font-bold' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <div className="relative">
                     <CheckSquare className="w-5 h-5 stroke-[2.2]" />
-                    {tasks.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION' || t.status === 'ACCEPTED').length > 0 && (
-                      <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-amber-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border border-white">
-                        {tasks.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION' || t.status === 'ACCEPTED').length}
+                    {inProgressReports.length > 0 && (
+                      <span className="absolute -top-1 -right-2 min-w-4 h-4 px-1 bg-purple-600 text-white font-bold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-2xs font-mono">
+                        {inProgressReports.length}
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] mt-1 font-medium">Tasks</span>
+                  <span className="text-[10px] mt-1 font-medium">Assigned</span>
                 </button>
-              ) : (
-                /* Center Floating Voice Search Button for Worker */
-                <div className="flex flex-col items-center justify-center flex-1 -mt-5">
+
+                {/* 4. Responder Dispatch Alerts */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('alerts');
+                    setHasReadAlerts(true);
+                  }}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                    activeTab === 'alerts' ? 'text-rose-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <div className="relative">
+                    <Bell className="w-5 h-5 stroke-[2.2]" />
+                    {newAvailableReports.length > 0 && (
+                      <span className="absolute -top-1 -right-2 min-w-4 h-4 px-1 bg-rose-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-2xs font-mono">
+                        {newAvailableReports.length}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] mt-1 font-medium">Alerts</span>
+                </button>
+
+                {/* 5. Responder Profile */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('more')}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                    activeTab === 'more' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <User className="w-5 h-5 stroke-[2.2]" />
+                  <span className="text-[10px] mt-1 font-medium">Profile</span>
+                </button>
+
+              </nav>
+            ) : (
+              /* WORKER & ADMIN BOTTOM NAVIGATION */
+              <nav aria-label="Main Navigation" className="h-18 bg-white border-t border-slate-100 px-3 flex items-center justify-between sticky bottom-0 z-40 shadow-lg shadow-slate-200/50">
+                
+                <button
+                  onClick={() => setActiveTab('home')}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                    activeTab === 'home' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Home className="w-5 h-5 stroke-[2.2]" />
+                  <span className="text-[10px] mt-1 font-medium">Home</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('incidents')}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                    activeTab === 'incidents' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <AlertTriangle className="w-5 h-5 stroke-[2.2]" />
+                  <span className="text-[10px] mt-1 font-medium">Incidents</span>
+                </button>
+
+                {isAdmin ? (
+                  /* Admin Dedicated Tasks Sign-off Tab */
                   <button
-                    onClick={openVoiceSearchModal}
-                    aria-label="Voice Based Search"
-                    title="Voice Safety Search"
-                    className="w-13 h-13 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-blue-600/40 transition-all border-4 border-white relative group cursor-pointer"
+                    onClick={() => setActiveTab('tasks')}
+                    className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                      activeTab === 'tasks' ? 'text-amber-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+                    }`}
                   >
-                    <Mic className="w-6 h-6 stroke-[2.3] group-hover:scale-110 transition-transform" />
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full animate-ping" />
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+                    <div className="relative">
+                      <CheckSquare className="w-5 h-5 stroke-[2.2]" />
+                      {tasks.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION' || t.status === 'ACCEPTED').length > 0 && (
+                        <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-amber-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border border-white">
+                          {tasks.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION' || t.status === 'ACCEPTED').length}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] mt-1 font-medium">Tasks</span>
                   </button>
-                  <span className="text-[9px] font-bold text-blue-700 mt-0.5 tracking-tight">Voice Search</span>
-                </div>
-              )}
+                ) : (
+                  /* Center Floating Voice Search Button for Worker */
+                  <div className="flex flex-col items-center justify-center flex-1 -mt-5">
+                    <button
+                      onClick={openVoiceSearchModal}
+                      aria-label="Voice Based Search"
+                      title="Voice Safety Search"
+                      className="w-13 h-13 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-blue-600/40 transition-all border-4 border-white relative group cursor-pointer"
+                    >
+                      <Mic className="w-6 h-6 stroke-[2.3] group-hover:scale-110 transition-transform" />
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full animate-ping" />
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+                    </button>
+                    <span className="text-[9px] font-bold text-blue-700 mt-0.5 tracking-tight">Voice Search</span>
+                  </div>
+                )}
 
-              <button
-                onClick={() => {
-                  setActiveTab('alerts');
-                  setHasReadAlerts(true);
-                }}
-                className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
-                  activeTab === 'alerts' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                <div className="relative">
-                  <Bell className="w-5 h-5 stroke-[2.2]" />
-                  {!hasReadAlerts && (userAcceptedAlerts.length > 0 || (broadcastNotices.length > 0 && !isAdmin) || (isAdmin && reportedIncidents.some(r => r.is_sif))) && (
-                    <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border border-white">
-                      {isAdmin ? reportedIncidents.filter(r => r.is_sif).length : (userAcceptedAlerts.length || broadcastNotices.length)}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] mt-1 font-medium">{isAdmin ? 'Notifications' : 'Alerts'}</span>
-              </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('alerts');
+                    setHasReadAlerts(true);
+                  }}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                    activeTab === 'alerts' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <div className="relative">
+                    <Bell className="w-5 h-5 stroke-[2.2]" />
+                    {!hasReadAlerts && (userAcceptedAlerts.length > 0 || (broadcastNotices.length > 0 && !isAdmin) || (isAdmin && reportedIncidents.some(r => r.is_sif))) && (
+                      <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border border-white">
+                        {isAdmin ? reportedIncidents.filter(r => r.is_sif).length : (userAcceptedAlerts.length || broadcastNotices.length)}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] mt-1 font-medium">{isAdmin ? 'Notifications' : 'Alerts'}</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('more')}
-                className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
-                  activeTab === 'more' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                <User className="w-5 h-5 stroke-[2.2]" />
-                <span className="text-[10px] mt-1 font-medium">Profile</span>
-              </button>
+                <button
+                  onClick={() => setActiveTab('more')}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
+                    activeTab === 'more' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <User className="w-5 h-5 stroke-[2.2]" />
+                  <span className="text-[10px] mt-1 font-medium">Profile</span>
+                </button>
 
-            </nav>
+              </nav>
+            )}
 
           </>
         )}
