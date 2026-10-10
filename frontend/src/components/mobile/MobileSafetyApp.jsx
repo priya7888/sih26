@@ -569,23 +569,6 @@ export default function MobileSafetyApp() {
         {screenMode === 'welcome' && (
           <div className="flex-1 bg-white text-slate-900 flex flex-col justify-between px-6 py-4 animate-fadeIn relative overflow-hidden">
             
-            {/* Top Brand Header */}
-            <div className="flex items-center justify-between z-10 pt-1">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-green-600 flex items-center justify-center text-white shadow-sm shadow-emerald-500/30">
-                  <Shield className="w-5 h-5 fill-white" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-base font-black tracking-tight text-slate-900">Safety</span>
-                  <span className="text-base font-black tracking-tight text-emerald-600">Pulse</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>AI ACTIVE</span>
-              </div>
-            </div>
 
             {/* HERO VISUAL CONTAINER (MALE & FEMALE SAFETY TEAM) */}
             <div className="my-auto py-1 flex flex-col items-center text-center z-10">
