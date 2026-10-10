@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SafetyPulse</string>
+    <string name="title_activity_main">SafetyPulse</string>
+    <string name="package_name">org.safetyai.pulse</string>
+    <string name="custom_url_scheme">org.safetyai.pulse</string>
+</resources>
