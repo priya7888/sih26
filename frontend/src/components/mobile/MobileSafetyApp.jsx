@@ -602,22 +602,6 @@ export default function MobileSafetyApp() {
                 <h1 className="text-xl font-black text-slate-900 tracking-tight leading-tight">
                   SafetyPulse
                 </h1>
-                <p className="text-xs text-slate-600 font-medium max-w-[270px] leading-relaxed">
-                  Safety First, Always. AI-Powered Field Intelligence & Precursor Detection.
-                </p>
-              </div>
-
-              {/* Feature Chips */}
-              <div className="flex items-center justify-center gap-2 mt-2.5 text-[10px] text-slate-500 font-semibold">
-                <span className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">
-                  <Zap className="w-3 h-3 text-amber-500" /> SIF AI
-                </span>
-                <span className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">
-                  <Mic className="w-3 h-3 text-blue-600" /> 3 Languages
-                </span>
-                <span className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">
-                  <Ambulance className="w-3 h-3 text-emerald-600" /> 7 Teams
-                </span>
               </div>
 
             </div>
