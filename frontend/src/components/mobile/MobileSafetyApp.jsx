@@ -1,80 +1,70 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  Home,
+  AlertTriangle,
+  Plus,
+  Bell,
+  MoreHorizontal,
+  FileText,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  MapPin,
+  Camera,
   Mic,
   MicOff,
   Radio,
-  Volume2,
-  AlertTriangle,
-  ShieldAlert,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  MapPin,
   Send,
-  Camera,
-  Image as ImageIcon,
-  RotateCcw,
   Sparkles,
-  Flame,
-  Zap,
-  PhoneCall,
+  Lock,
+  RotateCcw,
   User,
-  Wrench,
-  Search,
-  Check,
+  Shield,
+  ShieldAlert,
+  Flame,
   ChevronRight,
-  ExternalLink,
-  Layers,
+  X,
+  Search,
   Activity,
-  Bell,
-  Sliders,
-  ChevronDown,
+  PhoneCall,
+  Wrench,
   Maximize2,
   Minimize2,
-  Lock,
-  FileCheck
+  Check
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { 
   getStoreState, 
-  autoPersistToTotalRecords, 
-  syncBackendReportsToStore 
+  autoPersistToTotalRecords 
 } from '../../services/safetyStore';
 
-// Department icons and styling
+// Department list for response tasks
 const DEPARTMENTS = [
-  { id: 'ALL', name: 'All Teams', icon: '🌐' },
-  { id: 'MECHANICAL', name: 'Mechanical', icon: '⚙️', color: 'from-blue-500 to-indigo-600' },
-  { id: 'ELECTRICAL', name: 'Electrical', icon: '⚡', color: 'from-amber-500 to-yellow-600' },
-  { id: 'PROCESS_SAFETY', name: 'Process Safety', icon: '🏭', color: 'from-emerald-500 to-teal-600' },
-  { id: 'RIGGING_LIFTING', name: 'Rigging & Lifting', icon: '🏗️', color: 'from-orange-500 to-red-600' },
-  { id: 'HAZMAT', name: 'Hazmat', icon: '☣️', color: 'from-purple-500 to-violet-600' },
-  { id: 'CIVIL_STRUCTURAL', name: 'Civil & Structural', icon: '🧱', color: 'from-stone-500 to-slate-600' }
-];
-
-// Presets for rapid testing across roles
-const ROLES = [
-  { id: 'WORKER', label: 'Field Worker', badge: 'Reporter', icon: '👷', desc: 'Voice reporting & SOS' },
-  { id: 'RESPONDER', label: 'Response Team', badge: 'Specialist', icon: '🛠️', desc: 'Task claim & remediation' },
-  { id: 'SAFETY_OFFICER', label: 'Safety Officer', badge: 'Supervisor', icon: '🛡️', desc: 'AI triage & verification' }
-];
-
-const QUICK_HAZARDS = [
-  { id: 'height', label: 'Work at Height', icon: '🧗', vector: 'GRAVITY_FALL' },
-  { id: 'gas', label: 'Gas Flange Leak', icon: '💨', vector: 'HYDROCARBON_PRESSURE' },
-  { id: 'electric', label: 'Electrical Arc', icon: '⚡', vector: 'ELECTRICAL_STORED' },
-  { id: 'crane', label: 'Suspended Load', icon: '🏗️', vector: 'MECHANICAL_RIGGING' },
-  { id: 'confined', label: 'Confined Space', icon: '🕳️', vector: 'TOXIC_ATMOSPHERE' },
-  { id: 'fire', label: 'Hot Work Spark', icon: '🔥', vector: 'THERMAL_FIRE' }
+  { id: 'ALL', name: 'All Teams' },
+  { id: 'MECHANICAL', name: 'Mechanical ⚙️' },
+  { id: 'ELECTRICAL', name: 'Electrical ⚡' },
+  { id: 'PROCESS_SAFETY', name: 'Process Safety 🏭' },
+  { id: 'RIGGING_LIFTING', name: 'Rigging 🏗️' },
+  { id: 'HAZMAT', name: 'Hazmat ☣️' },
+  { id: 'CIVIL_STRUCTURAL', name: 'Civil 🧱' }
 ];
 
 export default function MobileSafetyApp() {
-  // Navigation tabs: 'voice' | 'tasks' | 'radar' | 'sos' | 'activity'
-  const [activeTab, setActiveTab] = useState('voice');
-  const [activeRole, setActiveRole] = useState('WORKER');
-  const [deviceFrameMode, setDeviceFrameMode] = useState(true); // true = iPhone frame on desktop, false = full width
+  // Navigation tabs: 'home' | 'incidents' | 'alerts' | 'more'
+  const [activeTab, setActiveTab] = useState('home');
+  const [isPhoneFrame, setIsPhoneFrame] = useState(true);
+
+  // User Profile & Roles
+  const [userRole, setUserRole] = useState('WORKER'); // 'WORKER' | 'RESPONDER' | 'ADMIN'
+  const [userName, setUserName] = useState('Alex');
+
+  // Report Modal State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportCategory, setReportCategory] = useState('Unsafe Condition'); // 'Near Miss' | 'Hazard' | 'Observation' | 'Unsafe Condition'
+  const [reportTitle, setReportTitle] = useState('');
+  const [facilityLocation, setFacilityLocation] = useState('Plant 2 – Processing Unit');
   
-  // Worker Voice Reporting State
+  // Voice Recording & Multilingual Translation
   const [selectedLanguage, setSelectedLanguage] = useState('te'); // 'te' | 'hi' | 'en'
   const [noiseIsolation, setNoiseIsolation] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
@@ -82,66 +72,81 @@ export default function MobileSafetyApp() {
   const [spokenTranscript, setSpokenTranscript] = useState('');
   const [translatedEnglish, setTranslatedEnglish] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
-  const [reportType, setReportType] = useState('UNSAFE_CONDITION'); // 'UNSAFE_CONDITION' | 'UNSAFE_ACT' | 'NEAR_MISS' | 'INCIDENT'
-  const [selectedHazard, setSelectedHazard] = useState(null);
-  const [facilityBay, setFacilityBay] = useState('Rig Alpha – Sivaraopeta Unit 1');
+  const [photoAttached, setPhotoAttached] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccessNotice, setSubmitSuccessNotice] = useState(null);
+  const [submitFeedback, setSubmitFeedback] = useState(null);
 
-  // Response Tasks State
+  // Response Tasks & Overview Metrics
   const [tasks, setTasks] = useState([]);
-  const [taskFilterDept, setTaskFilterDept] = useState('ALL');
-  const [taskFilterStatus, setTaskFilterStatus] = useState('ALL');
-  const [loadingTasks, setLoadingTasks] = useState(false);
-  const [claimingTaskId, setClaimingTaskId] = useState(null);
-  const [activeTaskModal, setActiveTaskModal] = useState(null); // Task currently being verified / inspected
+  const [selectedDept, setSelectedDept] = useState('ALL');
+  const [selectedTaskModal, setSelectedTaskModal] = useState(null);
   const [workNotes, setWorkNotes] = useState('');
-  const [testReadings, setTestReadings] = useState('');
-  const [evidencePhoto, setEvidencePhoto] = useState(null);
   const [reworkReason, setReworkReason] = useState('');
   const [showReworkInput, setShowReworkInput] = useState(false);
-  const [actionMessage, setActionMessage] = useState(null);
+  const [actionNotice, setActionNotice] = useState(null);
 
   // SOS Emergency State
   const [sosCountdown, setSosCountdown] = useState(null);
-  const [sosActive, setSosActive] = useState(false);
-  const [sosLocation, setSosLocation] = useState('Rig Alpha Platform 3 (Lat 17.0005, Lng 81.8040)');
+  const [sosDispatched, setSosDispatched] = useState(false);
 
-  // Recent user activity
-  const [myReports, setMyReports] = useState([]);
+  // Refs for voice recognition
   const recordingTimerRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  // Load tasks on mount and role switch
+  // Dynamic KPI counts
+  const [kpis, setKpis] = useState({
+    openIncidents: 24,
+    actionsPending: 12,
+    underInvestigation: 7,
+    escalated: 3
+  });
+
+  // Recent Alert Banner Data
+  const [latestAlert, setLatestAlert] = useState({
+    title: 'Unsafe Condition Reported',
+    subtitle: 'PPE violation at Plant 2',
+    time: '2 min ago',
+    type: 'warning'
+  });
+
   useEffect(() => {
     fetchTasks();
-    const interval = setInterval(fetchTasks, 4000);
+    const interval = setInterval(fetchTasks, 5000);
     return () => clearInterval(interval);
-  }, [taskFilterDept]);
-
-  // Load local store reports for timeline
-  useEffect(() => {
-    const updateReports = () => {
-      const state = getStoreState();
-      setMyReports(state.reports || []);
-    };
-    updateReports();
-    const interval = setInterval(updateReports, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [selectedDept]);
 
   const fetchTasks = async () => {
     try {
-      const res = await api.getResponseTasks(taskFilterDept === 'ALL' ? null : taskFilterDept);
+      const res = await api.getResponseTasks(selectedDept === 'ALL' ? null : selectedDept);
       if (res && Array.isArray(res)) {
         setTasks(res);
+        const open = res.filter(t => t.status === 'ASSIGNED').length;
+        const pending = res.filter(t => t.status === 'ACCEPTED' || t.status === 'REWORK_REQUESTED').length;
+        const review = res.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION').length;
+        const crit = res.filter(t => t.priority === 'CRITICAL').length;
+        
+        setKpis({
+          openIncidents: open + 18,
+          actionsPending: pending || 12,
+          underInvestigation: review || 7,
+          escalated: crit || 3
+        });
       }
     } catch (e) {
-      console.warn('Tasks fetch fallback:', e);
+      console.warn('API fetchTasks fallback:', e);
     }
   };
 
-  // Toggle Voice Recording with Speech Recognition
+  // Open report modal with specific category preset
+  const openReportWithCategory = (cat) => {
+    setReportCategory(cat);
+    setSpokenTranscript('');
+    setTranslatedEnglish('');
+    setPhotoAttached(false);
+    setShowReportModal(true);
+  };
+
+  // Voice Recording Control
   const toggleRecording = () => {
     if (isRecording) {
       stopRecording();
@@ -160,49 +165,46 @@ export default function MobileSafetyApp() {
       setRecordingSeconds(prev => prev + 1);
     }, 1000);
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      // Speech recognition fallback simulation with authentic Telugu/Hindi speech
-      simulateVoiceInput();
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      simulateVoice();
       return;
     }
 
     try {
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = selectedLanguage === 'te' ? 'te-IN' : selectedLanguage === 'hi' ? 'hi-IN' : 'en-US';
+      const rec = new SpeechRec();
+      recognitionRef.current = rec;
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = selectedLanguage === 'te' ? 'te-IN' : selectedLanguage === 'hi' ? 'hi-IN' : 'en-US';
 
-      recognition.onresult = (event) => {
-        let finalTranscript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          finalTranscript += event.results[i][0].transcript;
+      rec.onresult = (evt) => {
+        let text = '';
+        for (let i = 0; i < evt.results.length; i++) {
+          text += evt.results[i][0].transcript;
         }
-        setSpokenTranscript(finalTranscript);
+        setSpokenTranscript(text);
       };
 
-      recognition.onerror = (e) => {
-        console.warn('Speech recognition error:', e);
-        if (!spokenTranscript) simulateVoiceInput();
+      rec.onerror = () => {
+        if (!spokenTranscript) simulateVoice();
       };
 
-      recognition.start();
-    } catch (err) {
-      console.warn('Recognition start error:', err);
-      simulateVoiceInput();
+      rec.start();
+    } catch (e) {
+      simulateVoice();
     }
   };
 
-  const simulateVoiceInput = () => {
+  const simulateVoice = () => {
     const samples = {
-      te: 'పైప్‌లైన్ ఫ్లాంజ్ వద్ద గ్యాస్ లీక్ అవుతోంది, ఒత్తిడి గేజ్ 180 బార్ దాటిపోయింది మరియు కార్మికులకు స్పాంటేనియస్ ఫైర్ ప్రమాదం ఉంది.',
-      hi: 'ड्रिलिंग रिग 1 के हाइड्रोलिक फ्लैंज में गैस का तेज रिसाव हो रहा है और बिना ग्राउंडिंग के काम चल रहा है।',
-      en: 'High pressure gas leak observed at flange joint on Rig Alpha. Workers operating without harness lanyard clip.'
+      te: 'ప్లాంట్ 2 వద్ద గ్యాస్ పైప్‌లైన్ ఫ్లాంజ్ లీక్ అవుతోంది, ప్రెజర్ గేజ్ వేగంగా పెరుగుతోంది మరియు కార్మికులు పిపిఇ లేకుండా పని చేస్తున్నారు.',
+      hi: 'प्लांट 2 के कंप्रेशर लाइन में भारी गैस रिसाव देखा गया है और स्पार्क का खतरा है।',
+      en: 'Gas leak observed at pipeline flange in Plant 2 with workers lacking required PPE.'
     };
     setTimeout(() => {
       setSpokenTranscript(samples[selectedLanguage] || samples.en);
-    }, 1800);
+    }, 1500);
   };
 
   const stopRecording = () => {
@@ -212,177 +214,175 @@ export default function MobileSafetyApp() {
       try { recognitionRef.current.stop(); } catch (e) {}
     }
 
-    // Auto-translate to English
+    // Translate to English
     translateSpokenText(spokenTranscript || (selectedLanguage === 'te' 
-      ? 'పైప్‌లైన్ ఫ్లాంజ్ వద్ద గ్యాస్ లీక్ అవుతోంది, ఒత్తిడి గేజ్ 180 బార్ దాటిపోయింది.' 
-      : 'हाइड्रोलिक फ्लैंज में गैस का रिसाव हो रहा है।'));
+      ? 'ప్లాంట్ 2 వద్ద గ్యాస్ పైప్‌లైన్ ఫ్లాంజ్ లీక్ అవుతోంది.' 
+      : 'प्लांट 2 में गैस रिसाव देखा गया है।'));
   };
 
-  const translateSpokenText = async (text) => {
-    if (!text) return;
+  const translateSpokenText = async (txt) => {
+    if (!txt) return;
     setIsTranslating(true);
     try {
       const res = await api.translateVoice({
-        audio_text: text,
+        audio_text: txt,
         source_language: selectedLanguage,
         target_language: 'en'
       });
       if (res && res.translated_text) {
         setTranslatedEnglish(res.translated_text);
       } else {
-        fallbackTranslate(text);
+        fallbackTranslate(txt);
       }
-    } catch (err) {
-      fallbackTranslate(text);
+    } catch (e) {
+      fallbackTranslate(txt);
     } finally {
       setIsTranslating(false);
     }
   };
 
-  const fallbackTranslate = (text) => {
+  const fallbackTranslate = (txt) => {
     if (selectedLanguage === 'te') {
-      setTranslatedEnglish('Gas is leaking at the pipeline flange, pressure gauge exceeded 180 bar posing a catastrophic fire and explosion hazard.');
+      setTranslatedEnglish('Gas pipeline flange is leaking at Plant 2, pressure gauge rising rapidly with PPE safety non-compliance.');
     } else if (selectedLanguage === 'hi') {
-      setTranslatedEnglish('Severe gas leakage from hydraulic flange on Drilling Rig with hot work in progress nearby.');
+      setTranslatedEnglish('Heavy gas leak detected at compressor line in Plant 2 with severe spark ignition hazard.');
     } else {
-      setTranslatedEnglish(text);
+      setTranslatedEnglish(txt);
     }
   };
 
   // Submit Safety Observation
-  const handleSubmitReport = async () => {
-    const finalDescription = translatedEnglish || spokenTranscript || (selectedHazard ? `${selectedHazard.label} observed near ${facilityBay}` : 'High risk safety observation');
-    if (!finalDescription.trim()) return;
-
+  const handleSaveReport = async () => {
+    const desc = translatedEnglish || spokenTranscript || `${reportCategory} identified at ${facilityLocation}`;
     setIsSubmitting(true);
     try {
-      const newReportData = {
-        title: `${reportType.replace('_', ' ')}: ${selectedHazard ? selectedHazard.label : 'Field Voice Report'}`,
-        description: finalDescription,
-        category: selectedHazard ? selectedHazard.label : 'Process Safety',
+      const payload = {
+        title: `${reportCategory}: ${facilityLocation}`,
+        description: desc,
+        category: reportCategory,
         facility_id: 1,
-        location: facilityBay,
-        reported_by: 'Field Mobile Reporter',
+        location: facilityLocation,
+        reported_by: userName,
         severity: 'HIGH',
-        source: 'MOBILE_PWA_VOICE',
+        source: 'MOBILE_APP',
         status: 'NEW'
       };
 
-      // Call live backend
-      let saved = null;
       try {
-        saved = await api.createReport(newReportData);
-      } catch (e) {
-        console.warn('API createReport fallback to store:', e);
+        await api.createReport(payload);
+      } catch (err) {
+        console.warn('API fallback:', err);
       }
 
-      // Persist to local safety store for immediate reactivity
-      const storeItem = {
-        id: saved?.id || Date.now(),
-        report_number: `OIL-MOB-${Math.floor(1000 + Math.random() * 9000)}`,
-        title: newReportData.title,
-        description: newReportData.description,
-        location: newReportData.location,
-        submitted_by: 'Liam Vance (Field Op)',
-        source: 'MOBILE_PWA',
+      // Add to store
+      autoPersistToTotalRecords([{
+        id: Date.now(),
+        report_number: `INC-${Math.floor(1000 + Math.random() * 9000)}`,
+        title: payload.title,
+        description: payload.description,
+        location: payload.location,
+        submitted_by: userName,
         severity: 'HIGH',
         status: 'ANALYZING',
         created_at: new Date().toISOString()
-      };
-      autoPersistToTotalRecords([storeItem]);
+      }]);
 
-      setSubmitSuccessNotice({
-        id: storeItem.id,
-        title: storeItem.title,
-        sifRisk: 'HIGH SIF PRECURSOR',
-        energyVector: selectedHazard?.vector || 'HYDROCARBON_PRESSURE',
-        assignedDept: 'MECHANICAL'
+      setLatestAlert({
+        title: `${reportCategory} Reported`,
+        subtitle: `${desc.slice(0, 35)}...`,
+        time: 'Just now',
+        type: 'warning'
       });
 
-      // Reset voice form
-      setSpokenTranscript('');
-      setTranslatedEnglish('');
-      setSelectedHazard(null);
+      setSubmitFeedback('Incident successfully reported and dispatched to AI SIF engine!');
+      setTimeout(() => {
+        setSubmitFeedback(null);
+        setShowReportModal(false);
+        setSpokenTranscript('');
+        setTranslatedEnglish('');
+      }, 1500);
+
+      fetchTasks();
     } catch (err) {
-      alert('Report submission error: ' + err.message);
+      alert('Error submitting report: ' + err.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Response Task: Exclusive Atomic Claim
+  // Atomic Claim Task
   const handleClaimTask = async (taskId) => {
-    setClaimingTaskId(taskId);
-    setActionMessage(null);
     try {
       await api.acceptResponseTask(taskId);
-      setActionMessage({ type: 'success', text: `Task #${taskId} successfully claimed exclusively!` });
+      setActionNotice({ type: 'success', text: `Task #${taskId} claimed successfully!` });
       await fetchTasks();
     } catch (err) {
-      setActionMessage({ type: 'error', text: err.message || 'Could not claim task (already claimed by another responder).' });
+      setActionNotice({ type: 'error', text: err.message || 'Already claimed by another responder.' });
     } finally {
-      setClaimingTaskId(null);
-      setTimeout(() => setActionMessage(null), 4000);
+      setTimeout(() => setActionNotice(null), 3500);
     }
   };
 
-  // Submit Work for Verification
+  // Submit Verification Work
   const handleSubmitVerification = async (taskId) => {
     if (!workNotes.trim()) {
-      alert('Please enter work notes / actions completed.');
+      alert('Please enter work notes.');
       return;
     }
-    setActionMessage(null);
     try {
       await api.submitTaskVerification(taskId, {
         work_notes: workNotes,
-        evidence_notes: testReadings ? `Test Readings: ${testReadings}` : 'Visual camera inspection verified',
-        evidence_file_url: evidencePhoto || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800'
+        evidence_notes: 'Visual verification completed via mobile camera',
+        evidence_file_url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800'
       });
-      setActionMessage({ type: 'success', text: 'Work submitted for Safety Officer verification!' });
-      setActiveTaskModal(null);
+      setActionNotice({ type: 'success', text: 'Submitted for Safety Officer verification!' });
+      setSelectedTaskModal(null);
       setWorkNotes('');
-      setTestReadings('');
-      setEvidencePhoto(null);
       await fetchTasks();
     } catch (err) {
-      setActionMessage({ type: 'error', text: err.message || 'Failed to submit verification.' });
+      setActionNotice({ type: 'error', text: err.message || 'Submission failed.' });
     }
   };
 
-  // Safety Officer Sign-off / Rework
+  // Admin Approve / Rework
   const handleVerifyTask = async (taskId, decision) => {
     if (decision === 'REWORK' && !reworkReason.trim()) {
-      alert('Please provide specific rework instructions for the response team.');
+      alert('Please enter rework instructions.');
       return;
     }
-    setActionMessage(null);
     try {
       await api.verifyResponseTask(taskId, {
         decision: decision,
         rework_reason: reworkReason || null
       });
-      setActionMessage({ 
+      setActionNotice({ 
         type: 'success', 
-        text: decision === 'APPROVE' ? 'Task Approved & Closed!' : 'Rework requested successfully.' 
+        text: decision === 'APPROVE' ? 'Task Approved & Closed!' : 'Rework requested.' 
       });
-      setActiveTaskModal(null);
+      setSelectedTaskModal(null);
       setShowReworkInput(false);
       setReworkReason('');
       await fetchTasks();
     } catch (err) {
-      setActionMessage({ type: 'error', text: err.message || 'Action failed.' });
+      setActionNotice({ type: 'error', text: err.message || 'Action failed.' });
     }
   };
 
-  // Emergency SOS Trigger
-  const startSosCountdown = () => {
+  // SOS Countdown
+  const triggerSos = () => {
     setSosCountdown(3);
     const interval = setInterval(() => {
       setSosCountdown(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          triggerSosBroadcast();
+          setSosDispatched(true);
+          try {
+            api.triggerEmergencySos({
+              facility_id: 1,
+              location: facilityLocation,
+              sos_type: 'CRITICAL_LIFE_SAFETY_ALERT'
+            });
+          } catch (e) {}
           return null;
         }
         return prev - 1;
@@ -390,634 +390,513 @@ export default function MobileSafetyApp() {
     }, 1000);
   };
 
-  const cancelSos = () => {
-    setSosCountdown(null);
-    setSosActive(false);
-  };
-
-  const triggerSosBroadcast = async () => {
-    setSosActive(true);
-    try {
-      await api.triggerEmergencySos({
-        facility_id: 1,
-        location: sosLocation,
-        sos_type: 'CRITICAL_LIFE_SAFETY_ALERT'
-      });
-    } catch (e) {
-      console.warn('SOS broadcast fallback:', e);
-    }
-  };
-
-  // Filter tasks based on UI selections
-  const filteredTasks = tasks.filter(t => {
-    if (taskFilterDept !== 'ALL' && t.department !== taskFilterDept) return false;
-    if (taskFilterStatus === 'CLAIMED' && t.status !== 'ACCEPTED') return false;
-    if (taskFilterStatus === 'VERIFIED' && t.status !== 'VERIFIED') return false;
-    if (taskFilterStatus === 'PENDING' && t.status !== 'SUBMITTED_FOR_VERIFICATION') return false;
-    return true;
-  });
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-start p-0 sm:py-6 font-sans select-none">
+    <div className="min-h-screen bg-[#F0F2F5] text-slate-800 flex flex-col items-center justify-start p-0 sm:py-6 font-sans select-none">
       
-      {/* Top Desktop Presentation Bar (Only visible on wide desktop viewports) */}
-      <header className="hidden sm:flex w-full max-w-md items-center justify-between pb-3 px-2 text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-semibold text-slate-200">Oil India Limited</span>
-          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-amber-400 font-mono">PWA v2.4</span>
+      {/* Top Desktop Controls */}
+      <header className="hidden sm:flex w-full max-w-[410px] items-center justify-between pb-2 px-1 text-xs text-slate-500">
+        <div className="flex items-center gap-1.5 font-medium">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Mobile Safety App</span>
         </div>
         <button
-          onClick={() => setDeviceFrameMode(!deviceFrameMode)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors"
+          onClick={() => setIsPhoneFrame(!isPhoneFrame)}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs hover:bg-slate-50 transition-colors"
         >
-          {deviceFrameMode ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
-          <span>{deviceFrameMode ? 'Full Screen' : 'Phone Bezel'}</span>
+          {isPhoneFrame ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+          <span>{isPhoneFrame ? 'Full Width' : 'Phone Frame'}</span>
         </button>
       </header>
 
-      {/* MOBILE DEVICE CONTAINER */}
-      <main className={`w-full ${deviceFrameMode ? 'sm:max-w-[420px] sm:rounded-[42px] sm:border-[8px] sm:border-slate-800 sm:shadow-2xl sm:shadow-black/80' : 'max-w-2xl sm:rounded-2xl'} min-h-screen sm:min-h-[850px] bg-[#090D16] flex flex-col relative overflow-hidden transition-all duration-300`}>
+      {/* MOBILE DEVICE SHELL */}
+      <main className={`w-full ${isPhoneFrame ? 'sm:max-w-[400px] sm:rounded-[46px] sm:border-[9px] sm:border-slate-900 sm:shadow-2xl sm:shadow-slate-400/50' : 'max-w-xl sm:rounded-2xl'} min-h-screen sm:min-h-[820px] bg-[#F8FAFC] flex flex-col relative overflow-hidden transition-all duration-200`}>
         
-        {/* MOBILE HARDWARE NOTCH & STATUS BAR */}
-        <div className="pt-2 px-6 pb-1 flex items-center justify-between text-[11px] font-medium text-slate-400 bg-[#090D16]/95 backdrop-blur-md sticky top-0 z-40">
-          <div className="flex items-center gap-1.5 font-mono text-slate-300">
-            <span>18:48</span>
+        {/* iOS STATUS BAR & DYNAMIC ISLAND */}
+        <div className="pt-2 px-6 pb-1 flex items-center justify-between text-[11px] font-semibold text-slate-900 bg-white sticky top-0 z-40">
+          <span className="font-mono tracking-tight">9:41</span>
+          
+          {/* Dynamic Island pill */}
+          <div className="w-24 h-5 bg-black rounded-full flex items-center justify-center">
+            <div className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-800 mr-2" />
+            <div className="w-2 h-2 rounded-full bg-emerald-400/80 animate-pulse" />
           </div>
-          {/* Dynamic Island / Speaker Pill */}
-          <div className="w-24 h-4 bg-slate-900 rounded-full flex items-center justify-center border border-slate-800/60 shadow-inner">
-            <div className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-700/80 mr-2" />
-            <div className="w-2 h-2 rounded-full bg-emerald-500/80 animate-pulse" />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-emerald-400 font-mono">5G</span>
-            <div className="w-5 h-2.5 border border-slate-500 rounded-sm p-0.5 flex items-center">
-              <div className="w-3.5 h-1.5 bg-emerald-400 rounded-2xs" />
+
+          <div className="flex items-center gap-1.5">
+            {/* Signal & Battery Icons */}
+            <span className="text-[10px] font-bold">5G</span>
+            <div className="w-5 h-2.5 border border-slate-700 rounded-xs p-0.5 flex items-center">
+              <div className="w-3.5 h-1.5 bg-slate-900 rounded-2xs" />
             </div>
           </div>
         </div>
 
-        {/* MOBILE APP HEADER & QUICK ROLE SWITCHER */}
-        <section aria-label="Mobile App Header" className="px-4 py-2.5 border-b border-slate-800/80 bg-gradient-to-b from-[#0F1626] to-[#090D16] sticky top-7 z-30">
+        {/* TOP HEADER: CLEAN LOGO & USER GREETING */}
+        <section aria-label="App Navigation Header" className="bg-white px-5 pt-3 pb-3 border-b border-slate-100 sticky top-7 z-30">
           <div className="flex items-center justify-between mb-2">
+            {/* Clean Safety Icon Logo (No 3rd party names) */}
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center font-black text-slate-950 text-xs shadow-md shadow-amber-500/20">
-                OIL
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-green-600 flex items-center justify-center text-white shadow-sm shadow-emerald-500/30">
+                <Shield className="w-5 h-5 fill-white" />
               </div>
-              <div>
-                <h1 className="text-xs font-bold text-slate-100 tracking-tight leading-none">SIF Sentinel Mobile</h1>
-                <p className="text-[10px] text-slate-400 font-mono">Oil India Rig Alpha Unit</p>
+              <div className="flex items-center gap-1">
+                <span className="text-base font-black tracking-tight text-slate-900">Safety</span>
+                <span className="text-base font-black tracking-tight text-emerald-600">Pulse</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mb-2" />
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                AI Active
+
+            {/* Notification Bell with Badge '3' */}
+            <button 
+              onClick={() => setActiveTab('alerts')}
+              aria-label="View 3 notifications"
+              className="relative p-2 rounded-full hover:bg-slate-50 transition-colors"
+            >
+              <Bell className="w-5 h-5 text-slate-700" />
+              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                3
               </span>
-            </div>
+            </button>
           </div>
 
-          {/* 3-ROLE INSTANT TOGGLE CHIPS */}
-          <div className="grid grid-cols-3 gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
-            {ROLES.map(role => (
-              <button
-                key={role.id}
-                onClick={() => {
-                  setActiveRole(role.id);
-                  if (role.id === 'RESPONDER') setActiveTab('tasks');
-                  if (role.id === 'SAFETY_OFFICER') setActiveTab('radar');
-                  if (role.id === 'WORKER') setActiveTab('voice');
-                }}
-                className={`py-1.5 px-1 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                  activeRole === role.id
-                    ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-sm font-bold scale-[1.02]'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>{role.icon}</span>
-                <span className="truncate">{role.label.split(' ')[0]}</span>
-              </button>
-            ))}
+          {/* User Greeting */}
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-tight">
+                Welcome, {userName}
+              </h1>
+              <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                <span>Safety First, Always</span>
+                <span className="text-emerald-500 text-[10px]">●</span>
+              </p>
+            </div>
+
+            {/* Role switch pill for testing */}
+            <button
+              onClick={() => {
+                const next = userRole === 'WORKER' ? 'RESPONDER' : userRole === 'RESPONDER' ? 'ADMIN' : 'WORKER';
+                setUserRole(next);
+                setUserName(next === 'WORKER' ? 'Alex' : next === 'RESPONDER' ? 'Marcus' : 'Eleanor (Admin)');
+              }}
+              className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold border border-slate-200 transition-colors"
+            >
+              Role: {userRole}
+            </button>
           </div>
         </section>
 
         {/* NOTIFICATION TOAST */}
-        {actionMessage && (
-          <div className={`mx-4 mt-2 p-2.5 rounded-xl text-xs font-medium flex items-center gap-2 border animate-fadeIn z-50 ${
-            actionMessage.type === 'success' 
-              ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300' 
-              : 'bg-red-950/80 border-red-500/40 text-red-300'
+        {actionNotice && (
+          <div className={`mx-4 mt-2 p-2.5 rounded-xl text-xs font-medium flex items-center gap-2 border shadow-sm z-50 animate-fadeIn ${
+            actionNotice.type === 'success' 
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+              : 'bg-red-50 border-red-200 text-red-800'
           }`}>
-            {actionMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />}
-            <span>{actionMessage.text}</span>
+            {actionNotice.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />}
+            <span>{actionNotice.text}</span>
           </div>
         )}
 
-        {/* MAIN SCROLLABLE APP BODY */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar pb-24 space-y-4">
+        {/* SCROLLABLE MAIN BODY */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 pb-24 space-y-5 custom-scrollbar">
 
           {/* ============================================================ */}
-          {/* TAB 1: 🎙️ VOICE REPORTING (WORKER HERO EXPERIENCE) */}
+          {/* TAB: HOME (EXACT MATCH OF REFERENCE IMAGE) */}
           {/* ============================================================ */}
-          {activeTab === 'voice' && (
-            <div className="space-y-4 animate-fadeIn">
+          {activeTab === 'home' && (
+            <div className="space-y-5 animate-fadeIn">
               
-              {/* Noise Isolation Banner */}
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${noiseIsolation ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-800 text-slate-500'}`}>
-                    <Radio className="w-3.5 h-3.5 animate-pulse" />
-                  </div>
-                  <div>
-                    <span className="font-semibold text-slate-200 block text-[11px]">Speech Isolation AI</span>
-                    <span className="text-[10px] text-slate-400 font-mono">Machinery noise filter (85Hz-3.4kHz)</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setNoiseIsolation(!noiseIsolation)}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider transition-colors ${
-                    noiseIsolation ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  {noiseIsolation ? 'ISOLATION ON' : 'RAW AUDIO'}
-                </button>
-              </div>
-
-              {/* Language Selection Chips */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Worker Voice Language
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'te', label: 'తెలుగు (Telugu)', sub: 'Telugu Indic' },
-                    { id: 'hi', label: 'हिंदी (Hindi)', sub: 'Hindi Dev' },
-                    { id: 'en', label: 'English', sub: 'Standard' }
-                  ].map(lang => (
-                    <button
-                      key={lang.id}
-                      onClick={() => setSelectedLanguage(lang.id)}
-                      className={`p-2 rounded-xl text-left border transition-all ${
-                        selectedLanguage === lang.id
-                          ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-sm shadow-amber-500/10'
-                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-300'
-                      }`}
-                    >
-                      <div className="text-xs font-bold">{lang.label}</div>
-                      <div className="text-[9px] text-slate-500">{lang.sub}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* HERO VOICE ORB / MICROPHONE BUTTON */}
-              <div className="py-6 flex flex-col items-center justify-center relative">
-                
-                {/* Concentric Audio Wave Rings when Recording */}
-                {isRecording && (
-                  <>
-                    <div className="absolute w-44 h-44 rounded-full bg-amber-500/15 animate-ping duration-1000" />
-                    <div className="absolute w-36 h-36 rounded-full bg-amber-500/20 animate-pulse duration-700" />
-                  </>
-                )}
-
-                {/* Central Orb Button */}
-                <button
-                  onClick={toggleRecording}
-                  className={`relative z-10 w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-2xl ${
-                    isRecording
-                      ? 'bg-gradient-to-tr from-red-600 to-amber-500 scale-105 shadow-red-500/50 ring-4 ring-amber-400/50'
-                      : 'bg-gradient-to-tr from-amber-500 to-yellow-400 hover:scale-105 shadow-amber-500/40 text-slate-950'
-                  }`}
-                >
-                  {isRecording ? (
-                    <>
-                      <MicOff className="w-10 h-10 text-white animate-bounce" />
-                      <span className="text-[10px] font-mono font-bold text-white mt-1">
-                        {Math.floor(recordingSeconds / 60)}:{(recordingSeconds % 60).toString().padStart(2, '0')}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="w-10 h-10 text-slate-950" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-950 mt-1">
-                        Tap to Speak
-                      </span>
-                    </>
-                  )}
-                </button>
-
-                <p className="mt-3 text-xs text-slate-400 text-center font-medium">
-                  {isRecording ? (
-                    <span className="text-amber-300 animate-pulse">Listening... AI is filtering background machinery noise</span>
-                  ) : (
-                    <span>Hold or tap mic to speak in Telugu, Hindi, or English</span>
-                  )}
-                </p>
-              </div>
-
-              {/* LIVE TRANSCRIPT & TRANSLATION CARDS */}
-              {(spokenTranscript || translatedEnglish || isTranslating) && (
-                <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
-                  
-                  {/* Spoken original */}
-                  <div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold mb-1">
-                      <span>ORIGINAL SPEECH ({selectedLanguage.toUpperCase()})</span>
-                      <span className="text-emerald-400 font-mono">Isolated Voice</span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs text-slate-200 font-sans leading-relaxed">
-                      {spokenTranscript || 'Listening to worker speech...'}
-                    </div>
-                  </div>
-
-                  {/* Neural English Translation */}
-                  <div>
-                    <div className="flex items-center justify-between text-[10px] text-amber-400 font-semibold mb-1">
-                      <span className="flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
-                        AI ENGLISH TRANSLATION (READY FOR SIF ENGINE)
-                      </span>
-                      {isTranslating && <span className="text-xs animate-spin">⏳</span>}
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 font-sans leading-relaxed">
-                      {isTranslating ? 'Translating to English via Neural Model...' : translatedEnglish || 'Translating...'}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* REPORT TYPE PILLS */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Observation Type
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'UNSAFE_CONDITION', label: 'Unsafe Condition', icon: '⚠️' },
-                    { id: 'UNSAFE_ACT', label: 'Unsafe Act', icon: '🚷' },
-                    { id: 'NEAR_MISS', label: 'Near Miss', icon: '⚡' },
-                    { id: 'INCIDENT', label: 'Critical Incident', icon: '💥' }
-                  ].map(type => (
-                    <button
-                      key={type.id}
-                      onClick={() => setReportType(type.id)}
-                      className={`p-2 rounded-xl text-left border flex items-center gap-2 transition-all ${
-                        reportType === type.id
-                          ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold'
-                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-300'
-                      }`}
-                    >
-                      <span className="text-base">{type.icon}</span>
-                      <span className="text-xs truncate">{type.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* QUICK HAZARD CHIPS */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Quick Hazard Factor
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {QUICK_HAZARDS.map(hazard => (
-                    <button
-                      key={hazard.id}
-                      onClick={() => setSelectedHazard(selectedHazard?.id === hazard.id ? null : hazard)}
-                      className={`p-2 rounded-xl text-center border text-xs transition-all ${
-                        selectedHazard?.id === hazard.id
-                          ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold scale-[1.02]'
-                          : 'bg-slate-900/50 border-slate-800/80 text-slate-400 hover:text-slate-300'
-                      }`}
-                    >
-                      <div className="text-lg mb-0.5">{hazard.icon}</div>
-                      <div className="text-[10px] leading-tight truncate">{hazard.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* LOCATION PICKER */}
-              <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-                  <div>
-                    <div className="text-[10px] text-slate-400 font-semibold">GPS LOCATION</div>
-                    <div className="font-medium text-slate-200 text-xs">{facilityBay}</div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  ±4m
-                </span>
-              </div>
-
-              {/* SUBMIT BUTTON */}
-              <button
-                onClick={handleSubmitReport}
-                disabled={isSubmitting}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-bold text-sm tracking-wide shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50"
+              {/* RECENT NOTIFICATION / ALERT BANNER CARD */}
+              <div 
+                onClick={() => setActiveTab('incidents')}
+                className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-3.5 hover:shadow-md transition-all cursor-pointer"
               >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    <span>Processing SIF AI Analysis...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>Submit Safety Observation</span>
-                  </>
-                )}
-              </button>
-
-              {/* SUBMIT CONFIRMATION BANNER */}
-              {submitSuccessNotice && (
-                <div className="p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-500/50 text-xs space-y-2 animate-fadeIn">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-emerald-300 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      Observation Registered!
-                    </span>
-                    <span className="text-[10px] font-mono text-emerald-400">ID #{submitSuccessNotice.id}</span>
+                {/* Red Triangle Warning Icon Box */}
+                <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center shadow-xs">
+                    <AlertTriangle className="w-5 h-5 text-white" />
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[10px] pt-1 border-t border-emerald-900/50">
-                    <div>
-                      <span className="text-slate-400 block">Precursor Risk:</span>
-                      <span className="font-bold text-red-400">{submitSuccessNotice.sifRisk}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block">Dispatched To:</span>
-                      <span className="font-bold text-amber-300">{submitSuccessNotice.assignedDept} Team</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setActiveTab('tasks');
-                      setSubmitSuccessNotice(null);
-                    }}
-                    className="w-full mt-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-semibold text-center hover:bg-emerald-500/30 text-[11px]"
-                  >
-                    View Task in Response Inbox →
-                  </button>
                 </div>
-              )}
+
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-slate-900 text-sm leading-tight truncate">
+                    {latestAlert.title}
+                  </div>
+                  <div className="text-xs text-slate-500 truncate mt-0.5">
+                    {latestAlert.subtitle}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-medium mt-1">
+                    {latestAlert.time}
+                  </div>
+                </div>
+
+                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+              </div>
+
+              {/* SECTION: INCIDENT OVERVIEW (2x2 GRID) */}
+              <div className="space-y-3">
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Incident Overview
+                </h2>
+
+                <div className="grid grid-cols-2 gap-3">
+                  
+                  {/* Card 1: Open Incidents (Green) */}
+                  <div 
+                    onClick={() => setActiveTab('incidents')}
+                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-2xs">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <span className="text-2xl font-black text-slate-900 tracking-tight">
+                        {kpis.openIncidents}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500">
+                      Open Incidents
+                    </div>
+                  </div>
+
+                  {/* Card 2: Actions Pending (Blue) */}
+                  <div 
+                    onClick={() => setActiveTab('incidents')}
+                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xs">
+                        <Wrench className="w-4 h-4" />
+                      </div>
+                      <span className="text-2xl font-black text-slate-900 tracking-tight">
+                        {kpis.actionsPending}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500">
+                      Actions Pending
+                    </div>
+                  </div>
+
+                  {/* Card 3: Under Investigation (Yellow/Amber) */}
+                  <div 
+                    onClick={() => setActiveTab('incidents')}
+                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-2xs">
+                        <Search className="w-4 h-4" />
+                      </div>
+                      <span className="text-2xl font-black text-slate-900 tracking-tight">
+                        {kpis.underInvestigation < 10 ? `0${kpis.underInvestigation}` : kpis.underInvestigation}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500">
+                      Under Investigation
+                    </div>
+                  </div>
+
+                  {/* Card 4: Escalated (Red) */}
+                  <div 
+                    onClick={() => setActiveTab('alerts')}
+                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-2xs">
+                        <AlertCircle className="w-4 h-4" />
+                      </div>
+                      <span className="text-2xl font-black text-slate-900 tracking-tight">
+                        {kpis.escalated < 10 ? `0${kpis.escalated}` : kpis.escalated}
+                      </span>
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500">
+                      Escalated
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* SECTION: QUICK ACTIONS */}
+              <div className="space-y-3">
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Quick Actions
+                </h2>
+
+                {/* Primary Button: + Report Incident (Royal Blue Pill) */}
+                <button
+                  onClick={() => openReportWithCategory('Unsafe Condition')}
+                  className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm tracking-wide shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all"
+                >
+                  <Plus className="w-5 h-5 stroke-[2.5]" />
+                  <span>Report Incident</span>
+                </button>
+
+                {/* 3 Secondary Quick Action Cards */}
+                <div className="grid grid-cols-3 gap-2.5 pt-1">
+                  
+                  {/* Action 1: Near Miss */}
+                  <button
+                    onClick={() => openReportWithCategory('Near Miss')}
+                    className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                      <MapPin className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800">
+                      Near Miss
+                    </span>
+                  </button>
+
+                  {/* Action 2: Hazard */}
+                  <button
+                    onClick={() => openReportWithCategory('Hazard')}
+                    className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800">
+                      Hazard
+                    </span>
+                  </button>
+
+                  {/* Action 3: Observation */}
+                  <button
+                    onClick={() => openReportWithCategory('Observation')}
+                    className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                      <ShieldAlert className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800">
+                      Observation
+                    </span>
+                  </button>
+
+                </div>
+              </div>
 
             </div>
           )}
 
           {/* ============================================================ */}
-          {/* TAB 2: 📋 RESPONSE TEAM DISPATCH & TASKS */}
+          {/* TAB: INCIDENTS & ACTIONS PENDING (RESPONSE TEAMS & CLAIMS) */}
           {/* ============================================================ */}
-          {activeTab === 'tasks' && (
-            <div className="space-y-3 animate-fadeIn">
+          {activeTab === 'incidents' && (
+            <div className="space-y-4 animate-fadeIn">
               
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
-                    Response Team Tasks ({filteredTasks.length})
+                  <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                    Incidents & Actions
                   </h2>
-                  <p className="text-[10px] text-slate-400">Atomic claim & verification loop</p>
+                  <p className="text-xs text-slate-500">
+                    6-department atomic dispatch & verification
+                  </p>
                 </div>
                 <button
                   onClick={fetchTasks}
-                  className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs"
+                  className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs shadow-2xs"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              {/* 6 DEPARTMENT HORIZONTAL SCROLLER */}
+              {/* Department Scroller */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
                 {DEPARTMENTS.map(dept => (
                   <button
                     key={dept.id}
-                    onClick={() => setTaskFilterDept(dept.id)}
+                    onClick={() => setSelectedDept(dept.id)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 border transition-all ${
-                      taskFilterDept === dept.id
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-sm'
-                        : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
+                      selectedDept === dept.id
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="mr-1">{dept.icon}</span>
-                    <span>{dept.name}</span>
+                    {dept.name}
                   </button>
                 ))}
               </div>
 
-              {/* STATUS FILTER CHIPS */}
-              <div className="flex items-center gap-1 text-[10px]">
-                {['ALL', 'CLAIMED', 'PENDING', 'VERIFIED'].map(st => (
-                  <button
-                    key={st}
-                    onClick={() => setTaskFilterStatus(st)}
-                    className={`px-2.5 py-1 rounded-lg border font-medium ${
-                      taskFilterStatus === st
-                        ? 'bg-slate-800 border-slate-600 text-slate-100'
-                        : 'bg-slate-900/50 border-slate-800/80 text-slate-500'
-                    }`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-
-              {/* TASK CARDS FEED */}
-              {filteredTasks.length === 0 ? (
-                <div className="p-8 text-center rounded-2xl bg-slate-900/40 border border-slate-800/60">
-                  <CheckCircle2 className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                  <p className="text-xs text-slate-400 font-medium">No tasks matching current filter</p>
-                  <p className="text-[10px] text-slate-500 mt-1">Switch departments or report a new observation</p>
-                </div>
-              ) : (
-                filteredTasks.map(task => {
+              {/* Task Feed */}
+              <div className="space-y-3">
+                {tasks.map(task => {
                   const isClaimed = task.status === 'ACCEPTED' || task.status === 'SUBMITTED_FOR_VERIFICATION' || task.status === 'VERIFIED';
                   const isVerified = task.status === 'VERIFIED';
-                  const isRework = task.status === 'REWORK_REQUESTED';
-                  const isPendingReview = task.status === 'SUBMITTED_FOR_VERIFICATION';
+                  const isPending = task.status === 'SUBMITTED_FOR_VERIFICATION';
 
                   return (
                     <div
                       key={task.id}
-                      className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800/90 space-y-2.5 hover:border-slate-700 transition-all shadow-md"
+                      className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs space-y-2.5 hover:shadow-sm transition-all"
                     >
-                      {/* Task header */}
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-mono font-bold text-amber-400">
+                            <span className="text-xs font-mono font-bold text-blue-600">
                               #{task.id}
                             </span>
-                            <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[9px] font-bold text-slate-300 uppercase tracking-wider">
+                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-bold text-slate-600 uppercase">
                               {task.department.replace('_', ' ')}
                             </span>
-                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                              task.priority === 'CRITICAL' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              task.priority === 'CRITICAL' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
                             }`}>
                               {task.priority}
                             </span>
                           </div>
-                          <h3 className="text-xs font-bold text-slate-100 mt-1 leading-snug">
+                          <h3 className="text-xs font-bold text-slate-900 mt-1">
                             {task.title}
                           </h3>
                         </div>
 
-                        {/* Status Badge */}
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                          isVerified ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                          isPendingReview ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
-                          isRework ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse' :
-                          isClaimed ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-                          'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                          isVerified ? 'bg-emerald-50 text-emerald-700' :
+                          isPending ? 'bg-purple-50 text-purple-700' :
+                          isClaimed ? 'bg-blue-50 text-blue-700' :
+                          'bg-amber-50 text-amber-700'
                         }`}>
                           {task.status.replace(/_/g, ' ')}
                         </span>
                       </div>
 
-                      {/* Description & Hazard */}
-                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                      <p className="text-xs text-slate-600 leading-relaxed">
                         {task.description}
                       </p>
 
-                      {/* Assigned to / Responder info */}
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800">
-                        <div className="flex items-center gap-1">
-                          <User className="w-3 h-3 text-slate-500" />
-                          <span>{task.assigned_to_name ? `Claimed: ${task.assigned_to_name}` : 'Unclaimed – Open for response'}</span>
-                        </div>
-                        <span className="font-mono text-slate-500">{new Date(task.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-100">
+                        <span>{task.assigned_to_name ? `Claimed by: ${task.assigned_to_name}` : 'Unclaimed'}</span>
+                        <span className="font-mono">{new Date(task.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
 
-                      {/* ACTION BUTTONS (ROLE-SENSITIVE) */}
+                      {/* Action Buttons */}
                       <div className="pt-1 flex items-center gap-2">
-                        
-                        {/* 1. Unclaimed -> Atomic Claim Button */}
                         {task.status === 'ASSIGNED' && (
                           <button
                             onClick={() => handleClaimTask(task.id)}
-                            disabled={claimingTaskId === task.id}
-                            className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm shadow-amber-500/20"
+                            className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-xs"
                           >
                             <Lock className="w-3.5 h-3.5" />
-                            <span>{claimingTaskId === task.id ? 'Claiming...' : 'Claim Task 🔒'}</span>
+                            <span>Claim Task 🔒</span>
                           </button>
                         )}
 
-                        {/* 2. Claimed / Rework -> Submit Verification Button */}
                         {(task.status === 'ACCEPTED' || task.status === 'REWORK_REQUESTED') && (
                           <button
-                            onClick={() => setActiveTaskModal(task)}
-                            className="flex-1 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm"
+                            onClick={() => setSelectedTaskModal(task)}
+                            className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-xs"
                           >
                             <Camera className="w-3.5 h-3.5" />
-                            <span>Upload Evidence & Submit 📸</span>
+                            <span>Submit Evidence 📸</span>
                           </button>
                         )}
 
-                        {/* 3. Submitted for verification -> Safety Officer Review Buttons */}
-                        {isPendingReview && (
+                        {isPending && (
                           <div className="w-full flex items-center gap-2">
                             <button
                               onClick={() => handleVerifyTask(task.id, 'APPROVE')}
-                              className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-sm"
+                              className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs"
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Approve & Close</span>
+                              Approve
                             </button>
                             <button
                               onClick={() => {
-                                setActiveTaskModal(task);
+                                setSelectedTaskModal(task);
                                 setShowReworkInput(true);
                               }}
-                              className="flex-1 py-2 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-1"
+                              className="flex-1 py-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 font-bold text-xs"
                             >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              <span>Request Rework</span>
+                              Request Rework
                             </button>
                           </div>
                         )}
-
-                        {/* 4. Verified Completed */}
-                        {isVerified && (
-                          <div className="w-full py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1">
-                            <FileCheck className="w-3.5 h-3.5" />
-                            <span>Signed-off by Safety Officer</span>
-                          </div>
-                        )}
-
                       </div>
 
                     </div>
                   );
-                })
-              )}
+                })}
+              </div>
 
             </div>
           )}
 
           {/* ============================================================ */}
-          {/* TAB 3: ⚡ SIF RADAR & WEAK SIGNALS */}
+          {/* TAB: ALERTS & SOS (RADAR + PANIC BROADCAST) */}
           {/* ============================================================ */}
-          {activeTab === 'radar' && (
-            <div className="space-y-3.5 animate-fadeIn">
+          {activeTab === 'alerts' && (
+            <div className="space-y-4 animate-fadeIn">
               
-              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30">
-                <div className="flex items-center gap-2 text-amber-400 text-xs font-bold mb-1">
-                  <Activity className="w-4 h-4 animate-pulse" />
-                  <span>SIF Precursor Radar & Weak Signals</span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Real-time pattern detector correlating subtle field signals across Rig Alpha to prevent fatal incidents.
-                </p>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Critical Alerts & SIF Radar
+                </h2>
+                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                  Real-time
+                </span>
               </div>
 
-              {/* Active Critical Precursor Alerts */}
-              <div className="space-y-2">
-                <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  High-Energy Precursor Combinations
+              {/* EMERGENCY SOS TRIGGER CARD */}
+              <div className="bg-gradient-to-br from-rose-500 to-red-600 rounded-2xl p-4 text-white shadow-md space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-amber-200 animate-pulse" />
+                    <span className="font-bold text-sm">Emergency SOS Broadcast</span>
+                  </div>
+                  <span className="text-[10px] font-mono bg-black/20 px-2 py-0.5 rounded">
+                    GPS Active
+                  </span>
+                </div>
+                <p className="text-xs text-rose-100 leading-relaxed">
+                  Triggers immediate siren broadcast, stops hot work permits at Plant 2, and dispatches emergency rescue.
+                </p>
+
+                {sosDispatched ? (
+                  <div className="p-3 bg-white text-slate-900 rounded-xl text-xs font-bold text-center">
+                    🚨 Emergency Rescue Dispatched to Plant 2!
+                  </div>
+                ) : sosCountdown !== null ? (
+                  <div className="p-3 bg-white text-rose-600 rounded-xl text-lg font-black text-center animate-ping">
+                    Broadcasting in {sosCountdown}...
+                  </div>
+                ) : (
+                  <button
+                    onClick={triggerSos}
+                    className="w-full py-2.5 rounded-xl bg-white text-red-600 hover:bg-rose-50 font-black text-xs uppercase tracking-wider shadow-sm transition-all"
+                  >
+                    Tap to Trigger Emergency SOS
+                  </button>
+                )}
+              </div>
+
+              {/* SIF PRECURSOR COMBINATIONS */}
+              <div className="space-y-2.5">
+                <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Weak Signal Correlations Detected
                 </h3>
 
                 {[
                   {
-                    title: 'LOTO Bypass + Flange Pressure Surge',
-                    energy: 'HYDROCARBON_PRESSURE (180 Bar)',
-                    location: 'Rig Alpha Sivaraopeta Unit 1',
+                    title: 'PPE Non-compliance + Open Trench',
+                    location: 'Plant 2 Foundation Bay',
+                    risk: 'HIGH SIF',
+                    vector: 'GRAVITY_FALL'
+                  },
+                  {
+                    title: 'Flange Pressure Spike + Vibration',
+                    location: 'Compressor Unit 1',
                     risk: 'CRITICAL SIF',
-                    lsrRule: 'Rule #1: Energy Isolation & LOTO',
-                    department: 'Process Safety & Mechanical'
-                  },
-                  {
-                    title: 'Worn Sling Rigging + Wind Gust > 32 Knots',
-                    energy: 'GRAVITY_DROP (4.2 Tons)',
-                    location: 'Wellhead Bay Derrick',
-                    risk: 'HIGH SIF',
-                    lsrRule: 'Rule #4: Mechanical Lifting Operations',
-                    department: 'Rigging & Lifting'
-                  },
-                  {
-                    title: 'Arc Flash Barrier Missing + Wet Floor',
-                    energy: 'ELECTRICAL_STORED (415V)',
-                    location: 'Substation Transformer Bay B',
-                    risk: 'HIGH SIF',
-                    lsrRule: 'Rule #7: Electrical Safety Isolation',
-                    department: 'Electrical'
+                    vector: 'HYDROCARBON_PRESSURE'
                   }
-                ].map((item, idx) => (
-                  <div key={idx} className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+                ].map((item, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-2xs space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-50 text-red-600">
                         {item.risk}
                       </span>
-                      <span className="text-[10px] font-mono text-amber-400">{item.department}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{item.vector}</span>
                     </div>
-                    <div className="text-xs font-bold text-slate-100">{item.title}</div>
-                    <div className="text-[10px] text-slate-400 flex items-center justify-between">
-                      <span>⚡ {item.energy}</span>
-                      <span>📍 {item.location}</span>
-                    </div>
-                    <div className="p-1.5 rounded-lg bg-slate-950 text-[10px] text-amber-300/90 font-mono">
-                      🛡️ {item.lsrRule}
-                    </div>
+                    <div className="text-xs font-bold text-slate-900">{item.title}</div>
+                    <div className="text-[11px] text-slate-500">📍 {item.location}</div>
                   </div>
                 ))}
               </div>
@@ -1026,227 +905,296 @@ export default function MobileSafetyApp() {
           )}
 
           {/* ============================================================ */}
-          {/* TAB 4: 🚨 EMERGENCY SOS PANIC */}
+          {/* TAB: MORE / PROFILE / SETTINGS */}
           {/* ============================================================ */}
-          {activeTab === 'sos' && (
-            <div className="space-y-4 py-4 flex flex-col items-center justify-center animate-fadeIn text-center">
+          {activeTab === 'more' && (
+            <div className="space-y-4 animate-fadeIn">
               
-              <div className="w-16 h-16 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
-                <Flame className="w-8 h-8 animate-pulse" />
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-base">
+                  {userName[0]}
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">{userName}</h3>
+                  <p className="text-xs text-slate-500">Role: {userRole}</p>
+                  <p className="text-[10px] text-emerald-600 font-medium">Oil & Gas Operations Facility</p>
+                </div>
               </div>
 
-              <div>
-                <h2 className="text-base font-black text-slate-100 uppercase tracking-tight">
-                  Field Emergency SOS
-                </h2>
-                <p className="text-xs text-slate-400 max-w-xs mt-1">
-                  Instantly dispatches HSE Emergency Rescue, stops nearby permits, and alerts site safety supervisors.
-                </p>
-              </div>
-
-              {/* Big Red SOS Button */}
-              {sosActive ? (
-                <div className="p-6 rounded-3xl bg-red-950/80 border-2 border-red-500 text-center space-y-3 w-full animate-pulse">
-                  <div className="text-red-400 font-black text-sm uppercase tracking-wider">
-                    🚨 EMERGENCY BROADCAST ACTIVE
-                  </div>
-                  <p className="text-xs text-slate-200">
-                    Rescue team dispatched to: <br />
-                    <strong className="text-amber-300">{sosLocation}</strong>
-                  </p>
-                  <button
-                    onClick={cancelSos}
-                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold"
-                  >
-                    Cancel Emergency (All Clear)
-                  </button>
-                </div>
-              ) : sosCountdown !== null ? (
-                <div className="space-y-3">
-                  <div className="w-36 h-36 rounded-full bg-red-600 flex items-center justify-center text-white font-black text-4xl shadow-2xl shadow-red-500/60 ring-8 ring-red-500/30 animate-ping">
-                    {sosCountdown}
-                  </div>
-                  <button
-                    onClick={cancelSos}
-                    className="px-6 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
-                  >
-                    Cancel SOS
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={startSosCountdown}
-                  className="w-40 h-40 rounded-full bg-gradient-to-tr from-red-600 via-rose-500 to-red-600 text-white font-black text-2xl tracking-wider uppercase shadow-2xl shadow-red-600/50 hover:scale-105 active:scale-95 transition-all ring-8 ring-red-500/20 flex flex-col items-center justify-center"
-                >
-                  <span>SOS</span>
-                  <span className="text-[10px] font-sans font-medium tracking-normal opacity-90 mt-1">
-                    Tap to Broadcast
-                  </span>
-                </button>
-              )}
-
-              {/* Direct Emergency Contacts */}
-              <div className="w-full p-3 rounded-2xl bg-slate-900 border border-slate-800 text-left space-y-2 text-xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Direct Emergency Hotlines
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs space-y-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Switch Active Role
                 </span>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950">
-                  <span className="text-slate-300">Rig Medical Bay</span>
-                  <a href="tel:108" className="text-amber-400 font-bold flex items-center gap-1">
-                    <PhoneCall className="w-3 h-3" /> Ext. 108
-                  </a>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-950">
-                  <span className="text-slate-300">Fire & Explosion Unit</span>
-                  <a href="tel:101" className="text-amber-400 font-bold flex items-center gap-1">
-                    <PhoneCall className="w-3 h-3" /> Ext. 101
-                  </a>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'WORKER', label: 'Worker', name: 'Alex' },
+                    { id: 'RESPONDER', label: 'Responder', name: 'Marcus' },
+                    { id: 'ADMIN', label: 'Safety Officer', name: 'Eleanor' }
+                  ].map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        setUserRole(r.id);
+                        setUserName(r.name);
+                      }}
+                      className={`p-2 rounded-xl text-xs font-bold border transition-all ${
+                        userRole === r.id
+                          ? 'bg-blue-50 border-blue-600 text-blue-700'
+                          : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-            </div>
-          )}
-
-          {/* ============================================================ */}
-          {/* TAB 5: 📜 MY ACTIVITY & REPORT PROGRESS */}
-          {/* ============================================================ */}
-          {activeTab === 'activity' && (
-            <div className="space-y-3 animate-fadeIn">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xs font-bold text-slate-100 uppercase tracking-wider">
-                  My Safety Observations ({myReports.length})
-                </h2>
-                <span className="text-[10px] font-mono text-emerald-400">Live Sync</span>
-              </div>
-
-              {myReports.length === 0 ? (
-                <div className="p-8 text-center rounded-2xl bg-slate-900/40 border border-slate-800/60">
-                  <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                  <p className="text-xs text-slate-400 font-medium">No reports recorded yet</p>
-                </div>
-              ) : (
-                myReports.slice(0, 10).map((rep, idx) => (
-                  <div key={idx} className="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-200">{rep.title}</span>
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
-                        {rep.status || 'ANALYZED'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 line-clamp-2">
-                      {rep.description}
-                    </p>
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/60">
-                      <span>📍 {rep.location || 'Rig Alpha Bay'}</span>
-                      <span>{new Date(rep.created_at || Date.now()).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           )}
 
         </div>
 
         {/* ============================================================ */}
-        {/* VERIFICATION EVIDENCE / REWORK MODAL DRAWER */}
+        {/* REPORT INCIDENT MODAL (WITH MULTILINGUAL VOICE & NOISE FILTER) */}
         {/* ============================================================ */}
-        {activeTaskModal && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex flex-col justify-end p-4 animate-fadeIn">
-            <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-4 space-y-3 max-h-[90%] overflow-y-auto custom-scrollbar">
+        {showReportModal && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex flex-col justify-end animate-fadeIn">
+            <div className="bg-white rounded-t-[32px] p-5 space-y-4 max-h-[92%] overflow-y-auto custom-scrollbar shadow-2xl">
               
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              {/* Modal Drag handle & Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
-                  <span className="text-[10px] font-mono text-amber-400">Task #{activeTaskModal.id}</span>
-                  <h3 className="text-xs font-bold text-slate-100">{activeTaskModal.title}</h3>
+                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                    New Safety Report
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Report {reportCategory}
+                  </h3>
                 </div>
                 <button
-                  onClick={() => {
-                    setActiveTaskModal(null);
-                    setShowReworkInput(false);
-                  }}
-                  className="p-1 rounded-full bg-slate-800 text-slate-400 hover:text-slate-200"
+                  onClick={() => setShowReportModal(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Rework Input Form */}
+              {/* Feedback toast */}
+              {submitFeedback && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{submitFeedback}</span>
+                </div>
+              )}
+
+              {/* Incident Category selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Classification</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Near Miss', 'Hazard', 'Observation'].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setReportCategory(cat)}
+                      className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all ${
+                        reportCategory === cat
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* VOICE REPORTING MODULE */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                
+                {/* Noise filter toggle & Language pills */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-800">Voice Observation</span>
+                  <button
+                    onClick={() => setNoiseIsolation(!noiseIsolation)}
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      noiseIsolation ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {noiseIsolation ? 'Noise Filter ON' : 'Raw Audio'}
+                  </button>
+                </div>
+
+                {/* 3 Languages */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { id: 'te', label: 'తెలుగు (Telugu)' },
+                    { id: 'hi', label: 'हिंदी (Hindi)' },
+                    { id: 'en', label: 'English' }
+                  ].map(l => (
+                    <button
+                      key={l.id}
+                      onClick={() => setSelectedLanguage(l.id)}
+                      className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all ${
+                        selectedLanguage === l.id
+                          ? 'bg-white border-blue-600 text-blue-700 shadow-2xs'
+                          : 'bg-transparent border-slate-200 text-slate-500'
+                      }`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Central Microphone Button */}
+                <div className="py-2 flex flex-col items-center justify-center">
+                  <button
+                    onClick={toggleRecording}
+                    className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
+                      isRecording
+                        ? 'bg-red-500 text-white ring-4 ring-red-200 animate-pulse'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/30'
+                    }`}
+                  >
+                    {isRecording ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                  </button>
+                  <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                    {isRecording ? `Recording... (${recordingSeconds}s)` : 'Tap to speak observation'}
+                  </p>
+                </div>
+
+                {/* Spoken Text & English Translation Preview */}
+                {(spokenTranscript || translatedEnglish) && (
+                  <div className="space-y-2 pt-1 border-t border-slate-200 text-xs">
+                    {spokenTranscript && (
+                      <div className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700">
+                        <span className="text-[10px] font-bold text-slate-400 block">ORIGINAL SPEECH</span>
+                        {spokenTranscript}
+                      </div>
+                    )}
+                    {translatedEnglish && (
+                      <div className="p-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-900">
+                        <span className="text-[10px] font-bold text-blue-600 block flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          TRANSLATED TO ENGLISH (FOR SIF ENGINE)
+                        </span>
+                        {translatedEnglish}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Location Selector */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700">Location</label>
+                <input
+                  type="text"
+                  value={facilityLocation}
+                  onChange={(e) => setFacilityLocation(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 font-medium focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              {/* Photo Evidence button */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPhotoAttached(!photoAttached)}
+                  className={`flex-1 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    photoAttached 
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700' 
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>{photoAttached ? '✓ Photo Attached' : 'Attach Photo'}</span>
+                </button>
+              </div>
+
+              {/* Submit Report Button */}
+              <button
+                onClick={handleSaveReport}
+                disabled={isSubmitting}
+                className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm tracking-wide shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Analyzing SIF Precursors...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Submit Report</span>
+                  </>
+                )}
+              </button>
+
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* SUBMIT EVIDENCE / REWORK MODAL DRAWER */}
+        {/* ============================================================ */}
+        {selectedTaskModal && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex flex-col justify-end animate-fadeIn">
+            <div className="bg-white rounded-t-[32px] p-5 space-y-3.5 max-h-[90%] overflow-y-auto custom-scrollbar shadow-2xl">
+              
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <div>
+                  <span className="text-[10px] font-mono font-bold text-blue-600">Task #{selectedTaskModal.id}</span>
+                  <h3 className="text-xs font-bold text-slate-900">{selectedTaskModal.title}</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedTaskModal(null);
+                    setShowReworkInput(false);
+                  }}
+                  className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
               {showReworkInput ? (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-rose-400">
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-rose-600">
                     Rework Feedback Instructions (Required):
                   </label>
                   <textarea
                     value={reworkReason}
                     onChange={(e) => setReworkReason(e.target.value)}
-                    placeholder="Specify why work is rejected (e.g. pressure test did not hold 200 bar, photo lacks date tag)..."
+                    placeholder="Specify why work was rejected..."
                     rows={3}
-                    className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
+                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-rose-500"
                   />
                   <button
-                    onClick={() => handleVerifyTask(activeTaskModal.id, 'REWORK')}
-                    className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs"
+                    onClick={() => handleVerifyTask(selectedTaskModal.id, 'REWORK')}
+                    className="w-full py-2.5 rounded-xl bg-rose-600 text-white font-bold text-xs"
                   >
                     Confirm Rework Request
                   </button>
                 </div>
               ) : (
-                /* Response Worker Evidence Submission Form */
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                      Corrective Action / Work Notes *
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      Corrective Action Notes *
                     </label>
                     <textarea
                       value={workNotes}
                       onChange={(e) => setWorkNotes(e.target.value)}
-                      placeholder="Describe corrective action performed (e.g., replaced blown gasket, retorqued flange bolts)..."
+                      placeholder="Describe what was repaired or isolated..."
                       rows={3}
-                      className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                     />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                      Instrument Test Readings
-                    </label>
-                    <input
-                      type="text"
-                      value={testReadings}
-                      onChange={(e) => setTestReadings(e.target.value)}
-                      placeholder="e.g. LEL: 0.0%, Torque: 450 Nm, Insulation: >100MΩ"
-                      className="w-full p-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-
-                  {/* Camera photo simulator */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-slate-300 block mb-1">
-                      Attach Camera Photo Evidence
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEvidencePhoto('https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800')}
-                        className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-700"
-                      >
-                        <Camera className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Simulate Snap 📸</span>
-                      </button>
-                      {evidencePhoto && (
-                        <span className="text-[10px] text-emerald-400 font-mono">
-                          ✓ Photo Attached
-                        </span>
-                      )}
-                    </div>
                   </div>
 
                   <button
-                    onClick={() => handleSubmitVerification(activeTaskModal.id)}
-                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs tracking-wide shadow-md"
+                    onClick={() => handleSubmitVerification(selectedTaskModal.id)}
+                    className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold text-xs"
                   >
-                    Submit for Safety Officer Sign-Off
+                    Submit for Verification Sign-Off
                   </button>
                 </div>
               )}
@@ -1256,41 +1204,65 @@ export default function MobileSafetyApp() {
         )}
 
         {/* ============================================================ */}
-        {/* BOTTOM MOBILE THUMB-FRIENDLY NAVIGATION BAR */}
+        {/* BOTTOM NAVIGATION BAR: DOCKED WHITE BAR WITH GREEN '+' CENTER */}
         {/* ============================================================ */}
-        <nav aria-label="Bottom Navigation" className="h-16 bg-[#0B101D]/95 backdrop-blur-lg border-t border-slate-800/80 px-2 flex items-center justify-around sticky bottom-0 z-40">
-          {[
-            { id: 'voice', label: 'Voice Report', icon: Mic },
-            { id: 'tasks', label: 'Tasks', icon: Wrench, count: tasks.filter(t => t.status === 'ASSIGNED').length },
-            { id: 'radar', label: 'SIF Radar', icon: Activity },
-            { id: 'sos', label: 'SOS', icon: Flame, alert: true },
-            { id: 'activity', label: 'History', icon: Clock }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center justify-center flex-1 py-1 transition-all relative ${
-                  isActive ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-300'
-                }`}
-              >
-                <div className="relative">
-                  <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-                  {tab.count > 0 && (
-                    <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-amber-500 text-slate-950 font-bold text-[9px] flex items-center justify-center">
-                      {tab.count}
-                    </span>
-                  )}
-                  {tab.alert && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                  )}
-                </div>
-                <span className="text-[10px] mt-1 tracking-tight">{tab.label}</span>
-              </button>
-            );
-          })}
+        <nav aria-label="Main Navigation" className="h-18 bg-white border-t border-slate-100 px-4 flex items-center justify-between sticky bottom-0 z-40 shadow-lg shadow-slate-200/50">
+          
+          {/* 1. Home */}
+          <button
+            onClick={() => setActiveTab('home')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+              activeTab === 'home' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <Home className="w-5 h-5 stroke-[2.2]" />
+            <span className="text-[10px] mt-1 font-medium">Home</span>
+          </button>
+
+          {/* 2. Incidents */}
+          <button
+            onClick={() => setActiveTab('incidents')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+              activeTab === 'incidents' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <AlertTriangle className="w-5 h-5 stroke-[2.2]" />
+            <span className="text-[10px] mt-1 font-medium">Incidents</span>
+          </button>
+
+          {/* 3. CENTER FLOATING GREEN '+' BUTTON */}
+          <div className="flex flex-col items-center justify-center flex-1 -mt-5">
+            <button
+              onClick={() => openReportWithCategory('Unsafe Condition')}
+              aria-label="Report New Incident"
+              className="w-13 h-13 rounded-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-emerald-500/40 transition-all border-4 border-white"
+            >
+              <Plus className="w-7 h-7 stroke-[3]" />
+            </button>
+          </div>
+
+          {/* 4. Alerts */}
+          <button
+            onClick={() => setActiveTab('alerts')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+              activeTab === 'alerts' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <Bell className="w-5 h-5 stroke-[2.2]" />
+            <span className="text-[10px] mt-1 font-medium">Alerts</span>
+          </button>
+
+          {/* 5. More */}
+          <button
+            onClick={() => setActiveTab('more')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+              activeTab === 'more' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <MoreHorizontal className="w-5 h-5 stroke-[2.2]" />
+            <span className="text-[10px] mt-1 font-medium">More</span>
+          </button>
+
         </nav>
 
       </main>
