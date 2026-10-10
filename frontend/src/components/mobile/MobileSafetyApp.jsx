@@ -365,6 +365,7 @@ export default function MobileSafetyApp() {
   const [showReworkInput, setShowReworkInput] = useState(false);
   const [actionNotice, setActionNotice] = useState(null);
   const [hasReadAlerts, setHasReadAlerts] = useState(false);
+  const [notificationFilter, setNotificationFilter] = useState('ALL'); // 'ALL' | 'SIF' | 'ACTIONS' | 'DIRECTIVES'
 
   // Admin Role & Supervisory State
   const isAdmin = Boolean(
@@ -2080,49 +2081,95 @@ export default function MobileSafetyApp() {
 
                       </div>
 
+                      {/* QUICK ACTIONS: REPORT INCIDENT (SAME AS USER UI) */}
+                      <div className="space-y-3">
+                        <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                          Quick Actions
+                        </h2>
+
+                        <button
+                          onClick={() => openReportWithCategory('Unsafe Condition')}
+                          className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm tracking-wide shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                        >
+                          <Plus className="w-5 h-5 stroke-[2.5]" />
+                          <span>Report Incident</span>
+                        </button>
+
+                        <div className="grid grid-cols-3 gap-2.5 pt-1">
+                          <button
+                            onClick={() => openReportWithCategory('Near Miss')}
+                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
+                          >
+                            <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                              <MapPin className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <span className="text-xs font-bold text-slate-800">
+                              Near Miss
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => openReportWithCategory('Hazard')}
+                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
+                          >
+                            <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                              <AlertTriangle className="w-4 h-4 text-amber-500" />
+                            </div>
+                            <span className="text-xs font-bold text-slate-800">
+                              Hazard
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => openReportWithCategory('Observation')}
+                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
+                          >
+                            <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                              <ShieldAlert className="w-4 h-4 text-emerald-600" />
+                            </div>
+                            <span className="text-xs font-bold text-slate-800">
+                              Observation
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
                       {/* ADMIN SUPERVISORY SHORTCUTS */}
-                      <div className="space-y-2.5">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block font-mono">
-                          Supervisory Controls
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block font-mono">
+                          Supervisory Oversight
                         </span>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => setActiveTab('incidents')}
-                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
+                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer"
                           >
-                            <div className="w-9 h-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                            <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                               <FileText className="w-4 h-4" />
                             </div>
-                            <span className="text-[11px] font-bold text-slate-800 leading-tight">
-                              Review Incidents
-                            </span>
+                            <div className="text-left">
+                              <span className="text-xs font-bold text-slate-800 block leading-tight">
+                                Review Incidents
+                              </span>
+                              <span className="text-[10px] text-slate-400">All Sectors</span>
+                            </div>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => setActiveTab('tasks')}
-                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
+                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer"
                           >
-                            <div className="w-9 h-9 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+                            <div className="w-8 h-8 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
                               <CheckSquare className="w-4 h-4" />
                             </div>
-                            <span className="text-[11px] font-bold text-slate-800 leading-tight">
-                              Verify Tasks
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab('alerts')}
-                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
-                          >
-                            <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-                              <Radio className="w-4 h-4" />
+                            <div className="text-left">
+                              <span className="text-xs font-bold text-slate-800 block leading-tight">
+                                Verify Tasks
+                              </span>
+                              <span className="text-[10px] text-slate-400">Sign-Off</span>
                             </div>
-                            <span className="text-[11px] font-bold text-slate-800 leading-tight">
-                              Post Broadcast
-                            </span>
                           </button>
                         </div>
                       </div>
@@ -2774,99 +2821,186 @@ export default function MobileSafetyApp() {
               {activeTab === 'alerts' && (
                 <div className="space-y-4 animate-fadeIn">
 
-                  {/* ADMIN BROADCAST PUBLISHER (when isAdmin) */}
+                  {/* ADMIN NOTIFICATIONS CENTER (when isAdmin) */}
                   {isAdmin && (
-                    <div className="bg-white rounded-2xl p-4 border border-amber-200/90 shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-bold">
-                            <Radio className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider font-mono">
-                              Plant Safety Broadcast Tool
-                            </h3>
-                            <p className="text-[10px] text-slate-500">
-                              Push real-time safety directive to all worker mobile screens
-                            </p>
-                          </div>
+                    <div className="space-y-3">
+                      {/* Top Header */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                            <Bell className="w-4 h-4 text-blue-600" />
+                            <span>Safety Notifications</span>
+                          </h2>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Live incident dispatches, SIF precursor warnings & response updates
+                          </p>
                         </div>
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 font-mono">
+                          {reportedIncidents.length + tasks.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION').length} Active
+                        </span>
                       </div>
 
-                      <form onSubmit={handlePublishBroadcast} className="space-y-2.5">
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-500 uppercase font-mono block mb-1">
-                            Directive Title *
-                          </label>
-                          <input
-                            type="text"
-                            value={broadcastTitle}
-                            onChange={(e) => setBroadcastTitle(e.target.value)}
-                            placeholder="e.g. Flare Line Purging – Exclusion Perimeter"
-                            className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                          />
-                        </div>
+                      {/* Filter Chips: All | SIF Alerts | Verification Tasks | Directives */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+                        {[
+                          { id: 'ALL', label: `All (${reportedIncidents.length + tasks.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION').length + broadcastNotices.length})` },
+                          { id: 'SIF', label: `🚨 SIF Alerts (${reportedIncidents.filter(r => r.is_sif).length})` },
+                          { id: 'TASKS', label: `⏳ Verification (${tasks.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION').length})` },
+                          { id: 'DIRECTIVES', label: `📡 Directives (${broadcastNotices.length})` }
+                        ].map(chip => (
+                          <button
+                            key={chip.id}
+                            type="button"
+                            onClick={() => setNotificationFilter(chip.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 border transition-all cursor-pointer ${
+                              notificationFilter === chip.id
+                                ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase font-mono block mb-1">
-                              Sector Target
-                            </label>
-                            <select
-                              value={broadcastSector}
-                              onChange={(e) => setBroadcastSector(e.target.value)}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
+                      {/* Notification Cards Stream */}
+                      <div className="space-y-3">
+                        {/* 1. SIF & Incident Notifications */}
+                        {(notificationFilter === 'ALL' || notificationFilter === 'SIF') &&
+                          reportedIncidents
+                            .filter(r => (notificationFilter === 'SIF' ? r.is_sif : true))
+                            .map(report => (
+                              <div
+                                key={`notif-${report.id || report.report_number}`}
+                                className={`bg-white rounded-2xl p-4 border shadow-2xs space-y-2.5 relative overflow-hidden transition-all hover:shadow-xs ${
+                                  report.is_sif ? 'border-rose-200' : 'border-slate-200'
+                                }`}
+                              >
+                                <div className={`absolute top-0 left-0 right-0 h-1 ${report.is_sif ? 'bg-rose-500' : 'bg-blue-500'}`} />
+                                <div className="flex items-start justify-between gap-2 pt-0.5">
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black font-mono tracking-wider ${
+                                        report.is_sif ? 'bg-rose-100 text-rose-700' : 'bg-blue-50 text-blue-700'
+                                      }`}>
+                                        {report.is_sif ? '🚨 SIF PRECURSOR ALERT' : `📝 ${report.category || 'INCIDENT'}`}
+                                      </span>
+                                      <span className="text-[10px] font-bold text-slate-500 font-mono">
+                                        {report.facility_unit || report.location || 'Unit 1'}
+                                      </span>
+                                    </div>
+                                    <h3 className="text-xs font-bold text-slate-900 mt-1">
+                                      {report.title || report.report_name}
+                                    </h3>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    {report.created_at ? new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+                                  </span>
+                                </div>
+
+                                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed font-medium">
+                                  {report.description}
+                                </p>
+
+                                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+                                  <span className="text-slate-400 text-[10px]">
+                                    Reported by: <strong className="text-slate-700 font-medium">{report.reported_by || 'Frontline Worker'}</strong>
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAiAnalysisModalData(report)}
+                                    className="px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                                  >
+                                    <Sparkles className="w-3 h-3 text-amber-300" />
+                                    <span>Triage & Review</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                        {/* 2. Tasks Pending Verification */}
+                        {(notificationFilter === 'ALL' || notificationFilter === 'TASKS') &&
+                          tasks
+                            .filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION')
+                            .map(task => (
+                              <div
+                                key={`task-notif-${task.id}`}
+                                className="bg-white rounded-2xl p-4 border border-amber-300 shadow-2xs space-y-2 relative overflow-hidden"
+                              >
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
+                                <div className="flex items-start justify-between gap-2 pt-0.5">
+                                  <div>
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-black font-mono">
+                                      ⏳ VERIFICATION PENDING
+                                    </span>
+                                    <h3 className="text-xs font-bold text-slate-900 mt-1">{task.title}</h3>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    {task.created_at || 'Recently'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 leading-relaxed">
+                                  Control actions and verification evidence submitted by {task.department || 'responder team'}. Awaiting supervisor sign-off.
+                                </p>
+                                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+                                  <span className="text-slate-400 text-[10px]">Dept: <strong className="text-slate-700">{task.department}</strong></span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveTab('tasks')}
+                                    className="px-2.5 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-all"
+                                  >
+                                    <CheckSquare className="w-3 h-3" />
+                                    <span>Review & Sign-Off</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                        {/* 3. Directives */}
+                        {(notificationFilter === 'ALL' || notificationFilter === 'DIRECTIVES') &&
+                          broadcastNotices.map(notice => (
+                            <div
+                              key={notice.id}
+                              className="bg-white rounded-2xl p-4 border border-amber-300/80 shadow-2xs space-y-2 relative overflow-hidden"
                             >
-                              <option value="Plant-Wide">Plant-Wide (All Units)</option>
-                              <option value="Unit 1 (CDU)">Unit 1 (CDU)</option>
-                              <option value="Unit 2 (FCC)">Unit 2 (FCC)</option>
-                              <option value="Unit 3 (Hydrocracker)">Unit 3 (Hydrocracker)</option>
-                              <option value="Unit 4 (Flare)">Unit 4 (Flare)</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase font-mono block mb-1">
-                              Priority
-                            </label>
-                            <select
-                              value={broadcastPriority}
-                              onChange={(e) => setBroadcastPriority(e.target.value)}
-                              className="w-full p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                            >
-                              <option value="CRITICAL">🚨 CRITICAL (Immediate Stand-down)</option>
-                              <option value="HIGH">⚠️ HIGH (Precautionary)</option>
-                              <option value="ADVISORY">ℹ️ ADVISORY (Operational)</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-500 uppercase font-mono block mb-1">
-                            Directive Instructions *
-                          </label>
-                          <textarea
-                            value={broadcastMessage}
-                            onChange={(e) => setBroadcastMessage(e.target.value)}
-                            placeholder="State clear operational action for frontline teams..."
-                            rows={2}
-                            className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-amber-500"
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>Broadcast Directive to Frontline</span>
-                        </button>
-                      </form>
+                              <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
+                              <div className="flex items-start justify-between gap-2 pt-1">
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px] font-black font-mono">
+                                      📡 {notice.priority}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-500">
+                                      {notice.sector}
+                                    </span>
+                                  </div>
+                                  <h3 className="text-xs font-bold text-slate-900 mt-1">{notice.title}</h3>
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono shrink-0">{notice.timestamp}</span>
+                              </div>
+                              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                                {notice.message}
+                              </p>
+                              <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[10px] text-slate-400">
+                                <span>Issued by: <strong className="text-slate-600">{notice.sender}</strong></span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteBroadcast(notice.id)}
+                                  className="text-rose-600 font-bold hover:underline cursor-pointer"
+                                >
+                                  Withdraw
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* ACTIVE BROADCAST DIRECTIVES (Visible to both Admin & Workers) */}
-                  {broadcastNotices.length > 0 && (
+                  {/* WORKER DIRECTIVES & ACTION ALERTS (when !isAdmin) */}
+                  {!isAdmin && (
+                    <>
+                      {broadcastNotices.length > 0 && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-mono flex items-center gap-1">
@@ -2973,6 +3107,8 @@ export default function MobileSafetyApp() {
                         </span>
                       </div>
                     </div>
+                  )}
+                    </>
                   )}
 
                 </div>
@@ -4192,13 +4328,13 @@ export default function MobileSafetyApp() {
               >
                 <div className="relative">
                   <Bell className="w-5 h-5 stroke-[2.2]" />
-                  {!hasReadAlerts && (userAcceptedAlerts.length > 0 || (broadcastNotices.length > 0 && !isAdmin)) && (
+                  {!hasReadAlerts && (userAcceptedAlerts.length > 0 || (broadcastNotices.length > 0 && !isAdmin) || (isAdmin && reportedIncidents.some(r => r.is_sif))) && (
                     <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border border-white">
-                      {userAcceptedAlerts.length || broadcastNotices.length}
+                      {isAdmin ? reportedIncidents.filter(r => r.is_sif).length : (userAcceptedAlerts.length || broadcastNotices.length)}
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] mt-1 font-medium">{isAdmin ? 'Broadcasts' : 'Alerts'}</span>
+                <span className="text-[10px] mt-1 font-medium">{isAdmin ? 'Notifications' : 'Alerts'}</span>
               </button>
 
               <button
