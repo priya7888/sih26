@@ -618,22 +618,6 @@ export default function MobileSafetyApp() {
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
               </button>
 
-              {/* EMERGENCY SOS QUICK SHORTCUT */}
-              <button
-                onClick={() => {
-                  setScreenMode('app');
-                  setActiveTab('alerts');
-                }}
-                className="w-full py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center justify-center gap-1.5 border border-rose-200 transition-colors"
-              >
-                <Flame className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-                <span>Emergency SOS Hotline & Bypass</span>
-              </button>
-
-              <p className="text-[10px] text-slate-400 text-center font-medium">
-                Oil India Limited · Industrial Safety Operations
-              </p>
-
             </div>
 
           </div>
