@@ -291,7 +291,8 @@ export async function ingestBatchReports(rawRecords, replaceExisting = true) {
         report_date: r.report_date,
         additional_context: `Hazard: ${r.identified_hazard} | Uploaded Bulk Register`
       }));
-      await fetch('/api/reports/batch', {
+      const backendUrl = import.meta.env.VITE_API_URL || 'https://safety-backend-3ras.onrender.com';
+      await fetch(`${backendUrl}/api/reports/batch`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
