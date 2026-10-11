@@ -820,6 +820,53 @@ export default function MobileSafetyApp() {
     if (validationError) setValidationError('');
   };
 
+  // Clean location display: eliminates any VDU references, operating sector suffixes, and redundant unit prefixes
+  const getLocationDisplayData = () => {
+    let rawName = selectedIncidentLocation?.name || facilityLocation || 'Main Operations';
+    let rawAddr = selectedIncidentLocation?.address || '';
+
+    // 1. Remove Vacuum Distillation Unit / VDU mentions completely
+    rawName = rawName
+      .replace(/Vacuum\s+Distillation\s+Unit\s*(\(VDU\))?/gi, '')
+      .replace(/\(VDU\)/gi, '')
+      .replace(/VDU/g, '')
+      .trim();
+    rawAddr = rawAddr
+      .replace(/Vacuum\s+Distillation\s+Unit\s*(\(VDU\))?/gi, '')
+      .replace(/\(VDU\)/gi, '')
+      .replace(/VDU/g, '')
+      .trim();
+
+    // 2. Remove associated unit description text such as "(Operating Sector...)" or "(Operating...)"
+    rawName = rawName.replace(/\(?Operating\s*Sector[^)]*\)?/gi, '').trim();
+    rawAddr = rawAddr.replace(/\(?Operating\s*Sector[^)]*\)?/gi, '').trim();
+    rawName = rawName.replace(/\(?Operating[^)]*\)?/gi, '').trim();
+    rawAddr = rawAddr.replace(/\(?Operating[^)]*\)?/gi, '').trim();
+
+    // 3. Remove redundant unit name prefixes like "Unit 1 – ", "Unit 2: ", etc.
+    rawName = rawName.replace(/^Unit\s*\d+\s*[-–—:]\s*/i, '').trim();
+    rawAddr = rawAddr.replace(/^Unit\s*\d+\s*[-–—:]\s*/i, '').trim();
+
+    // Clean up residual punctuation
+    rawName = rawName.replace(/^[–—:,\s]+|[–—:,\s]+$/g, '').trim();
+    rawAddr = rawAddr.replace(/^[–—:,\s]+|[–—:,\s]+$/g, '').trim();
+
+    if (!rawName) {
+      rawName = 'Processing & Operations Area';
+    }
+
+    // Address/subtitle cleanup:
+    if (!rawAddr || rawAddr.toLowerCase() === rawName.toLowerCase()) {
+      if (selectedIncidentLocation?.latitude && selectedIncidentLocation?.longitude) {
+        rawAddr = `Lat: ${Number(selectedIncidentLocation.latitude).toFixed(4)}, Lng: ${Number(selectedIncidentLocation.longitude).toFixed(4)}`;
+      } else {
+        rawAddr = 'Tap to pinpoint exact equipment coordinates on satellite map';
+      }
+    }
+
+    return { name: rawName, address: rawAddr };
+  };
+
   // Voice Recording Control
   const toggleRecording = () => {
     if (isRecording) {
@@ -1157,6 +1204,20 @@ export default function MobileSafetyApp() {
       let refId = '';
 
       if (backendResult) {
+        if (backendResult.is_unrelated || (backendResult.determination_status || '').toUpperCase() === 'UNRELATED INPUT' || backendResult.report_name === 'Unrelated Input') {
+          clearTimeout(step2Timer);
+          clearTimeout(step3Timer);
+          clearTimeout(step4Timer);
+          setIsSubmitting(false);
+          setAnalysisStepText('');
+          setValidationError(
+            backendResult.message || 
+            backendResult.explanation || 
+            'Enter Correct Issue: Please describe an active operational safety observation, equipment condition, or hazard.'
+          );
+          return;
+        }
+
         const detStatus = (backendResult.determination_status || '').toLowerCase();
         const sifVal = backendResult.sif_precursor || (detStatus.includes('sif') && !detStatus.includes('no sif') && !detStatus.includes('not a sif') ? 'YES' : 'NO');
         isSIF = sifVal === 'YES';
@@ -1172,6 +1233,16 @@ export default function MobileSafetyApp() {
         reasoning = backendResult.explanation || backendResult.explainable_reasoning || getDynamicExplanation(sifVal, backendResult.hazard, energyVector, 'Personnel in operational zone', barrierStatus, activeText);
         refId = backendResult.report_reference || `REP-ID001-${Math.floor(1000 + Math.random() * 9000)}`;
       } else {
+        if (isUnrelatedIssue(activeText, selectedChecklist)) {
+          clearTimeout(step2Timer);
+          clearTimeout(step3Timer);
+          clearTimeout(step4Timer);
+          setIsSubmitting(false);
+          setAnalysisStepText('');
+          setValidationError('Enter Correct Issue: Please describe an active operational safety observation, equipment condition, or hazard.');
+          return;
+        }
+
         const evalResult = evaluateSIFPrecursor(activeText, humanCategoryLabel, humanCategoryLabel);
         isSIF = evalResult.isSIF;
         dynamicRiskScore = evalResult.riskScore || (isSIF ? 88 : 35);
@@ -4106,7 +4177,7 @@ export default function MobileSafetyApp() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <label className="text-[11px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                        <MapPin className="w-3.5 h-3.5 text-red-600" />
                         <span>INCIDENT LOCATION & UNIT</span>
                       </label>
                       <button
@@ -4150,49 +4221,53 @@ export default function MobileSafetyApp() {
                     </div>
 
                     {/* Interactive Plant Map Location Card & Trigger */}
-                    <div 
-                      onClick={handleOpenMapClick}
-                      className="p-3 rounded-2xl bg-gradient-to-r from-blue-50/90 to-indigo-50/70 border border-blue-200 shadow-2xs hover:border-blue-400 hover:shadow-xs transition-all cursor-pointer flex items-center justify-between gap-2"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                          selectedIncidentLocation ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30' : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          <MapPin className="w-5 h-5" />
-                        </div>
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-mono font-black uppercase px-1.5 py-0.2 rounded bg-white border border-blue-200 text-blue-800">
-                              {operatingUnit}
-                            </span>
-                            <span className="text-[11px] font-bold text-slate-900 truncate max-w-[170px]">
-                              {selectedIncidentLocation?.name || facilityLocation}
+                    {(() => {
+                      const locInfo = getLocationDisplayData();
+                      return (
+                        <div 
+                          onClick={handleOpenMapClick}
+                          className="w-full p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-slate-50 via-blue-50/60 to-indigo-50/50 border border-slate-200/90 hover:border-blue-300 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-center justify-between gap-2 overflow-hidden"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              selectedIncidentLocation 
+                                ? 'bg-red-600 text-white shadow-sm shadow-red-500/25' 
+                                : 'bg-red-50 text-red-600 border border-red-200/70'
+                            }`}>
+                              <MapPin className="w-4.5 h-4.5" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-0.5 overflow-hidden">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="shrink-0 text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-800 shadow-2xs">
+                                  {operatingUnit}
+                                </span>
+                                <span className="text-[11px] font-bold text-slate-900 truncate block min-w-0">
+                                  {locInfo.name}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 truncate block min-w-0">
+                                {locInfo.address}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 pl-1">
+                            <span className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-[10px] font-bold shadow-2xs inline-flex items-center gap-1 whitespace-nowrap transition-colors">
+                              <span>{isRequestingLocation ? 'Locating...' : selectedIncidentLocation ? 'Edit Map' : 'Open Map'}</span>
+                              <ChevronRight className="w-3 h-3 shrink-0" />
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-500 line-clamp-1">
-                            {selectedIncidentLocation?.address || 'Tap to pinpoint exact equipment coordinates on satellite map'}
-                          </p>
                         </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold shadow-2xs inline-flex items-center gap-1">
-                          <span>{isRequestingLocation ? 'Locating...' : selectedIncidentLocation ? 'Edit Map' : 'Open Map'}</span>
-                          <ChevronRight className="w-3 h-3" />
-                        </span>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
 
                   {/* 3. INPUT METHOD (MUTUALLY EXCLUSIVE) */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
                       <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
-                        INPUT METHOD <span className="font-normal text-slate-400 normal-case">(Select ONE — dual input not allowed)</span>
+                        INPUT METHOD
                       </label>
-                      <span className="text-[10px] font-mono font-bold text-slate-500">
-                        {inputMode === 'DESCRIPTION' ? '✍️ Mode: Text Explanation' : '📋 Mode: Safety Checklists'}
-                      </span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200">
@@ -4247,18 +4322,18 @@ export default function MobileSafetyApp() {
                           DETAILED FIELD EXPLANATION
                         </label>
                         <span className={`text-[11px] font-mono font-bold ${
-                          descriptionInput.length >= 240 ? 'text-[#FF5A36]' : 'text-slate-500'
+                          descriptionInput.length >= 99000 ? 'text-[#FF5A36]' : 'text-slate-500'
                         }`}>
-                          {descriptionInput.length} / 250 CHARACTERS
+                          {descriptionInput.length} / 99999 CHARACTERS
                         </span>
                       </div>
 
                       <textarea
                         rows={4}
-                        maxLength={250}
+                        maxLength={99999}
                         value={descriptionInput}
                         onChange={(e) => {
-                          setDescriptionInput(e.target.value.slice(0, 250));
+                          setDescriptionInput(e.target.value.slice(0, 99999));
                           if (validationError) setValidationError('');
                         }}
                         className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 leading-relaxed focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400 transition-all"
@@ -4421,16 +4496,16 @@ export default function MobileSafetyApp() {
                     <button
                       onClick={handleSaveReport}
                       disabled={isSubmitting}
-                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm tracking-wide shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer active:scale-[0.99]"
+                      className="w-full py-3.5 rounded-2xl bg-[#90EE90] hover:bg-[#7CCD7C] active:bg-[#68C568] text-[#12351F] border border-[#7CCD7C] font-bold text-sm tracking-wide shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer active:scale-[0.99]"
                     >
                       {isSubmitting ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-[#12351F] border-t-transparent rounded-full animate-spin" />
                           <span className="truncate">{analysisStepText || 'Analyzing SIF Precursors & Storing...'}</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-4 h-4 text-amber-300" />
+                          <Sparkles className="w-4 h-4 text-[#12351F]" />
                           <span>Run AI Analysis &amp; Store Record</span>
                         </>
                       )}
@@ -4442,229 +4517,319 @@ export default function MobileSafetyApp() {
             )}
 
             {/* FULL AI SIF ANALYSIS RESULT MODAL */}
-            {aiAnalysisModalData && (
-              <div className="absolute inset-0 bg-black/65 backdrop-blur-xs z-50 flex flex-col justify-end animate-fadeIn">
-                <div className="bg-white rounded-t-[32px] p-5 space-y-3.5 max-h-[92%] overflow-y-auto custom-scrollbar shadow-2xl">
-                  
-                  {/* Modal Header */}
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/30">
-                        <Sparkles className="w-5 h-5 text-amber-300" />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-black text-blue-600 tracking-wider uppercase block">
-                          AI Precursor Intelligence
-                        </span>
-                        <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                          Analysis & Triage Report
-                        </h3>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setAiAnalysisModalData(null)}
-                      className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+            {aiAnalysisModalData && (() => {
+              // Dynamically compute hazard risk score based on the given description
+              const rawDesc = aiAnalysisModalData.description || aiAnalysisModalData.text || '';
+              let modalRiskScore = 0;
+              if (rawDesc) {
+                try {
+                  modalRiskScore = calculateDynamicRiskScore(
+                    aiAnalysisModalData.hazard || aiAnalysisModalData.title || '',
+                    aiAnalysisModalData.energy_vector || '',
+                    'Personnel in operational zone',
+                    aiAnalysisModalData.barrier_status || '',
+                    aiAnalysisModalData.is_sif ? 'YES' : 'NO',
+                    rawDesc,
+                    aiAnalysisModalData.safety_factors || []
+                  );
+                } catch (e) {
+                  console.warn('calculateDynamicRiskScore failed:', e);
+                }
+              }
+              if (!modalRiskScore || modalRiskScore === 0) {
+                modalRiskScore = typeof aiAnalysisModalData.risk_score === 'number' && aiAnalysisModalData.risk_score > 0
+                  ? aiAnalysisModalData.risk_score
+                  : typeof aiAnalysisModalData.ai_score === 'number' && aiAnalysisModalData.ai_score > 0
+                  ? aiAnalysisModalData.ai_score
+                  : (aiAnalysisModalData.is_sif ? 94 : 28);
+              }
 
-                  {/* SIF Status Banner */}
-                  <div className={`p-4 rounded-2xl border ${
-                    aiAnalysisModalData.is_sif 
-                      ? 'bg-rose-50/70 border-rose-200 text-rose-950' 
-                      : 'bg-slate-50/90 border-slate-200 text-slate-800'
-                  }`}>
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full ${
-                          aiAnalysisModalData.is_sif ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-700 text-white'
-                        }`}>
-                          {aiAnalysisModalData.is_sif ? '🚨 SIF PRECURSOR DETECTED' : 'ℹ️ NON-SIF OBSERVATION'}
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 uppercase font-mono">
-                          {aiAnalysisModalData.status || 'Under Review'}
-                        </span>
-                      </div>
-                    </div>
-                    <h4 className="text-sm font-bold text-slate-900 leading-snug">
-                      {aiAnalysisModalData.title}
-                    </h4>
-                    {aiAnalysisModalData.description && (
-                      <div className="mt-2.5 p-3 rounded-xl bg-white/90 border border-slate-200/80 text-xs text-slate-700 leading-relaxed shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                          Reported Incident Description
-                        </span>
-                        <p className="italic font-medium text-slate-800 whitespace-pre-wrap">
-                          "{aiAnalysisModalData.description}"
-                        </p>
-                      </div>
-                    )}
-                  </div>
+              // Clean duplicate Unit names in title if present
+              const displayTitle = (aiAnalysisModalData.title || '')
+                .replace(/Unit (\d+)\s*–\s*Unit \1/gi, 'Unit $1');
 
-                  {/* AI Breakdown Cards */}
-                  <div className="space-y-2 text-xs">
+              return (
+                <div className="absolute inset-0 bg-black/65 backdrop-blur-xs z-50 flex flex-col justify-end animate-fadeIn">
+                  <div className="bg-white rounded-t-[32px] p-5 space-y-3.5 max-h-[92%] overflow-y-auto custom-scrollbar shadow-2xl">
                     
-                    {/* Energy Vector */}
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <Zap className="w-3 h-3 text-amber-500" /> Detected Energy Vector
-                      </span>
-                      <p className="font-bold text-slate-800">{aiAnalysisModalData.energy_vector}</p>
-                    </div>
-
-                    {/* Life-Saving Rule */}
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <ShieldAlert className="w-3 h-3 text-rose-500" /> IOGP Life-Saving Rule
-                      </span>
-                      <p className="font-bold text-slate-800">{aiAnalysisModalData.life_saving_rule}</p>
-                    </div>
-
-                    {/* AI Precursor Reasoning & Barrier Status */}
-                    {(aiAnalysisModalData.reasoning || aiAnalysisModalData.barrier_status) && (
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-indigo-500" /> AI Precursor Reasoning
+                    {/* Modal Header */}
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/30 shrink-0">
+                          <Sparkles className="w-5 h-5 text-amber-300" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black text-blue-600 tracking-wider uppercase block truncate">
+                            AI Precursor Intelligence
                           </span>
-                          {aiAnalysisModalData.barrier_status && (
-                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full font-mono ${
-                              aiAnalysisModalData.is_sif ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                            }`}>
-                              {aiAnalysisModalData.barrier_status}
+                          <h3 className="text-sm font-bold text-slate-900 leading-tight truncate">
+                            Analysis &amp; Triage Report
+                          </h3>
+                        </div>
+                      </div>
+
+                      {/* Hazard Risk Score Column beside AI Precursor Intelligence */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className={`flex flex-col items-end px-3 py-1.5 rounded-xl border shadow-2xs transition-all ${
+                          modalRiskScore >= 80 
+                            ? 'bg-rose-50 border-rose-200 text-rose-700' 
+                            : modalRiskScore >= 50
+                            ? 'bg-amber-50 border-amber-200 text-amber-700'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        }`}>
+                          <span className="text-[9px] font-black uppercase tracking-wider font-mono flex items-center gap-1">
+                            <Activity className="w-2.5 h-2.5" />
+                            Hazard Risk Score
+                          </span>
+                          <div className="flex items-baseline gap-0.5 leading-none mt-0.5">
+                            <span className="text-sm sm:text-base font-black font-mono">
+                              {modalRiskScore}
                             </span>
-                          )}
-                        </div>
-                        <p className="text-xs font-medium text-slate-700 leading-relaxed">
-                          {aiAnalysisModalData.reasoning || 'System identified precursor pattern requiring immediate barrier audit.'}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* How to Overcome: Critical Controls (Matching Website AI Output) */}
-                    <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-2">
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 font-mono">
-                          HOW TO OVERCOME: CRITICAL CONTROLS
-                        </span>
-                      </div>
-                      <ul className="space-y-1.5 pt-0.5">
-                        {((Array.isArray(aiAnalysisModalData.recommended_controls) && aiAnalysisModalData.recommended_controls.length > 0)
-                          ? aiAnalysisModalData.recommended_controls
-                          : getDynamicRecommendations(aiAnalysisModalData.category, aiAnalysisModalData.description || '')
-                        ).map((ctrl, i) => (
-                          <li key={i} className="text-xs text-slate-800 font-medium flex items-start gap-2">
-                            <span className="text-emerald-600 font-black mt-0.5 text-sm leading-none">&bull;</span>
-                            <span className="leading-snug">{ctrl}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Dispatched Organization / Department */}
-                    <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1 font-mono">
-                          <Building2 className="w-3.5 h-3.5 text-amber-600" /> Dispatched Organization
-                        </span>
-                        <p className="text-xs font-bold text-slate-900">
-                          {aiAnalysisModalData.assigned_department_label || 'Emergency Response Team'}
-                        </p>
-                      </div>
-                      <span className="text-[9px] font-bold bg-amber-600 text-white px-2.5 py-1 rounded-full font-mono">
-                        ASSIGNED
-                      </span>
-                    </div>
-
-                    {/* Admin Triage & Status Controller */}
-                    {isAdmin && (
-                      <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3 border border-slate-800 shadow-md">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-black tracking-wider uppercase text-amber-400 flex items-center gap-1.5 font-mono">
-                            <Shield className="w-3.5 h-3.5 text-amber-400" /> Admin Triage &amp; Workflow Control
-                          </span>
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                            Current: {aiAnalysisModalData.status || 'Under Review'}
-                          </span>
-                        </div>
-                        
-                        {/* Status Switcher Buttons */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
-                            Set Operational Status:
-                          </span>
-                          <div className="grid grid-cols-3 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateIncidentStatus(aiAnalysisModalData.id, 'Under Review')}
-                              className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                aiAnalysisModalData.status === 'Under Review'
-                                  ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-400/50'
-                                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                              }`}
-                            >
-                              ⏳ Under Review
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateIncidentStatus(aiAnalysisModalData.id, 'Action Required')}
-                              className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                aiAnalysisModalData.status === 'Action Required'
-                                  ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-400/50'
-                                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                              }`}
-                            >
-                              🚨 Action Req.
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateIncidentStatus(aiAnalysisModalData.id, 'Resolved')}
-                              className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                aiAnalysisModalData.status === 'Resolved'
-                                  ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400/50'
-                                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                              }`}
-                            >
-                              ✅ Resolved
-                            </button>
+                            <span className="text-[10px] font-semibold text-slate-400">
+                              /100
+                            </span>
                           </div>
                         </div>
 
-                        {/* Department Reassignment Dropdown */}
-                        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-slate-400 font-medium">Reassign Team:</span>
-                          <select
-                            value={aiAnalysisModalData.assigned_department || 'MECHANICAL'}
-                            onChange={(e) => handleReassignIncidentDepartment(aiAnalysisModalData.id, e.target.value)}
-                            className="bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-400 cursor-pointer"
-                          >
-                            {DEPARTMENTS.filter(d => d.id !== 'ALL').map(d => (
-                              <option key={d.id} value={d.id}>{d.label || d.name}</option>
-                            ))}
-                          </select>
+                        <button
+                          onClick={() => setAiAnalysisModalData(null)}
+                          className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SIF Status Banner */}
+                    <div className={`p-4 rounded-2xl border ${
+                      aiAnalysisModalData.is_sif 
+                        ? 'bg-rose-50/70 border-rose-200 text-rose-950' 
+                        : 'bg-slate-50/90 border-slate-200 text-slate-800'
+                    }`}>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full ${
+                            aiAnalysisModalData.is_sif ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-700 text-white'
+                          }`}>
+                            {aiAnalysisModalData.is_sif ? '🚨 SIF PRECURSOR DETECTED' : 'ℹ️ NON-SIF OBSERVATION'}
+                          </span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 uppercase font-mono">
+                            {aiAnalysisModalData.status || 'Under Review'}
+                          </span>
                         </div>
                       </div>
-                    )}
+                      <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                        {displayTitle}
+                      </h4>
+                      {aiAnalysisModalData.description && (
+                        <div className="mt-2.5 p-3 rounded-xl bg-white/90 border border-slate-200/80 text-xs text-slate-700 leading-relaxed shadow-2xs">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                            Reported Incident Description
+                          </span>
+                          <p className="italic font-medium text-slate-800 whitespace-pre-wrap">
+                            "{aiAnalysisModalData.description}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
+                    {/* AI Breakdown Cards */}
+                    <div className="space-y-2 text-xs">
+                      
+                      {/* Hazard Risk Score Detailed Card (Calculated from Description) */}
+                      <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                        modalRiskScore >= 80 
+                          ? 'bg-rose-50/80 border-rose-200' 
+                          : modalRiskScore >= 50
+                          ? 'bg-amber-50/80 border-amber-200'
+                          : 'bg-emerald-50/80 border-emerald-200'
+                      }`}>
+                        <div className="space-y-0.5 min-w-0">
+                          <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1 font-mono text-slate-500">
+                            <Activity className="w-3.5 h-3.5 text-rose-500" /> Hazard Risk Score
+                          </span>
+                          <p className="text-xs font-semibold text-slate-800">
+                            {modalRiskScore >= 80 
+                              ? 'Critical Severity Hazard — Immediate barrier escalation required.' 
+                              : modalRiskScore >= 50 
+                              ? 'Elevated Operational Risk — Active barrier monitoring needed.' 
+                              : 'Standard Minor Observation — Routine maintenance scheduled.'}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0 bg-white/95 px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                          <div className="text-[8px] font-mono font-bold text-slate-400 uppercase">RISK SCORE</div>
+                          <div className={`text-base font-black font-mono leading-none ${
+                            modalRiskScore >= 80 ? 'text-rose-600' : modalRiskScore >= 50 ? 'text-amber-600' : 'text-emerald-600'
+                          }`}>
+                            {modalRiskScore} <span className="text-[9px] font-normal text-slate-400">/ 100</span>
+                          </div>
+                          <span className={`inline-block mt-0.5 text-[8px] font-bold px-1.5 py-0.2 rounded-full font-mono uppercase ${
+                            modalRiskScore >= 80 ? 'bg-rose-100 text-rose-700' : modalRiskScore >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {modalRiskScore >= 80 ? 'High' : modalRiskScore >= 50 ? 'Medium' : 'Low'}
+                          </span>
+                        </div>
+                      </div>
 
+                      {/* Energy Vector */}
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                          <Zap className="w-3 h-3 text-amber-500" /> Detected Energy Vector
+                        </span>
+                        <p className="font-bold text-slate-800">{aiAnalysisModalData.energy_vector}</p>
+                      </div>
+
+                      {/* Life-Saving Rule */}
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                          <ShieldAlert className="w-3 h-3 text-rose-500" /> IOGP Life-Saving Rule
+                        </span>
+                        <p className="font-bold text-slate-800">{aiAnalysisModalData.life_saving_rule}</p>
+                      </div>
+
+                      {/* AI Precursor Reasoning & Barrier Status */}
+                      {(aiAnalysisModalData.reasoning || aiAnalysisModalData.barrier_status) && (
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-indigo-500" /> AI Precursor Reasoning
+                            </span>
+                            {aiAnalysisModalData.barrier_status && (
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                                aiAnalysisModalData.is_sif ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              }`}>
+                                {aiAnalysisModalData.barrier_status}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-medium text-slate-700 leading-relaxed">
+                            {aiAnalysisModalData.reasoning || 'System identified precursor pattern requiring immediate barrier audit.'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* How to Overcome: Critical Controls (Matching Website AI Output) */}
+                      <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 font-mono">
+                            HOW TO OVERCOME: CRITICAL CONTROLS
+                          </span>
+                        </div>
+                        <ul className="space-y-1.5 pt-0.5">
+                          {((Array.isArray(aiAnalysisModalData.recommended_controls) && aiAnalysisModalData.recommended_controls.length > 0)
+                            ? aiAnalysisModalData.recommended_controls
+                            : getDynamicRecommendations(aiAnalysisModalData.category, aiAnalysisModalData.description || '')
+                          ).map((ctrl, i) => (
+                            <li key={i} className="text-xs text-slate-800 font-medium flex items-start gap-2">
+                              <span className="text-emerald-600 font-black mt-0.5 text-sm leading-none">&bull;</span>
+                              <span className="leading-snug">{ctrl}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Dispatched Organization / Department */}
+                      <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1 font-mono">
+                            <Building2 className="w-3.5 h-3.5 text-amber-600" /> Dispatched Organization
+                          </span>
+                          <p className="text-xs font-bold text-slate-900">
+                            {aiAnalysisModalData.assigned_department_label || 'Emergency Response Team'}
+                          </p>
+                        </div>
+                        <span className="text-[9px] font-bold bg-amber-600 text-white px-2.5 py-1 rounded-full font-mono">
+                          ASSIGNED
+                        </span>
+                      </div>
+
+                      {/* Admin Triage & Status Controller */}
+                      {isAdmin && (
+                        <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3 border border-slate-800 shadow-md">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black tracking-wider uppercase text-amber-400 flex items-center gap-1.5 font-mono">
+                              <Shield className="w-3.5 h-3.5 text-amber-400" /> Admin Triage &amp; Workflow Control
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                              Current: {aiAnalysisModalData.status || 'Under Review'}
+                            </span>
+                          </div>
+                          
+                          {/* Status Switcher Buttons */}
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">
+                              Set Operational Status:
+                            </span>
+                            <div className="grid grid-cols-3 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateIncidentStatus(aiAnalysisModalData.id, 'Under Review')}
+                                className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                  aiAnalysisModalData.status === 'Under Review'
+                                    ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-400/50'
+                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                }`}
+                              >
+                                ⏳ Under Review
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateIncidentStatus(aiAnalysisModalData.id, 'Action Required')}
+                                className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                  aiAnalysisModalData.status === 'Action Required'
+                                    ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-400/50'
+                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                }`}
+                              >
+                                🚨 Action Req.
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateIncidentStatus(aiAnalysisModalData.id, 'Resolved')}
+                                className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                  aiAnalysisModalData.status === 'Resolved'
+                                    ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400/50'
+                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                }`}
+                              >
+                                ✅ Resolved
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Department Reassignment Dropdown */}
+                          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-slate-400 font-medium">Reassign Team:</span>
+                            <select
+                              value={aiAnalysisModalData.assigned_department || 'MECHANICAL'}
+                              onChange={(e) => handleReassignIncidentDepartment(aiAnalysisModalData.id, e.target.value)}
+                              className="bg-slate-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-xl border border-slate-700 focus:outline-none focus:border-amber-400 cursor-pointer"
+                            >
+                              {DEPARTMENTS.filter(d => d.id !== 'ALL').map(d => (
+                                <option key={d.id} value={d.id}>{d.label || d.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+
+                    {/* Bottom Actions */}
+                    <div className="pt-2">
+                      <button
+                        onClick={() => setAiAnalysisModalData(null)}
+                        className="w-full py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-[0.99] text-slate-800 font-bold text-xs cursor-pointer transition-all"
+                      >
+                        Done / Return to Dashboard
+                      </button>
+                    </div>
 
                   </div>
-
-                  {/* Bottom Actions */}
-                  <div className="pt-2">
-                    <button
-                      onClick={() => setAiAnalysisModalData(null)}
-                      className="w-full py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-[0.99] text-slate-800 font-bold text-xs cursor-pointer transition-all"
-                    >
-                      Done / Return to Dashboard
-                    </button>
-                  </div>
-
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* INCIDENT MAP LOCATION MODAL */}
             {locationViewIncident && (
