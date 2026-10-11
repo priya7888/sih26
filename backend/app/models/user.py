@@ -14,6 +14,7 @@ class User(Base):
     role = Column(String(50), default="HSE_OFFICER")
     mode = Column(String(50), default="Field Operations")
     zone = Column(String(100), nullable=True) # e.g. "Rig Operations", "Refinery Processing"
+    department = Column(String(100), nullable=True) # e.g. "AMBULANCE_MEDICAL", "MECHANICAL", "ELECTRICAL"
     assigned_admin_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     permissions = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

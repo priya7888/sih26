@@ -58,6 +58,7 @@ def ensure_database_schema():
                 new_user_cols = [
                     ("mode", "VARCHAR(50) DEFAULT 'Field Operations'"),
                     ("zone", "VARCHAR(100)"),
+                    ("department", "VARCHAR(100)"),
                     ("assigned_admin_id", "INTEGER"),
                     ("permissions", "VARCHAR(500)")
                 ]
@@ -65,6 +66,9 @@ def ensure_database_schema():
                     if col_name not in existing_user_cols:
                         conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
                 conn.commit()
+
+            # Ensure notifications and push_subscriptions tables exist
+            Base.metadata.create_all(bind=engine)
 
             # Check feedbacks table
             feedback_result = conn.execute(text("PRAGMA table_info(feedbacks)"))

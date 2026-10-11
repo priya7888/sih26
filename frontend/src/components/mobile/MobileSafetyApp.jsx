@@ -123,166 +123,56 @@ function extractAiIncidentDetails(text, category) {
   let dept = 'MECHANICAL';
   let deptLabel = 'Mechanical Team ⚙️';
 
-  if (combined.includes('gas') || combined.includes('leak') || combined.includes('pipe') || combined.includes('flange') || combined.includes('pressure') || combined.includes('h2s')) {
-    energyVector = 'High Pressure Chemical & Flammable Hydrocarbon';
-    lifeSavingRule = 'Bypass Safety Controls & Energy Isolation (LOTO)';
-    recommendedAction = 'Depressurize line, isolate upstream valves, verify LEL with gas detector, and deploy 50m exclusion zone.';
-    dept = 'AMBULANCE_MEDICAL';
-    deptLabel = 'Ambulance / Medical 🚑 & Process Safety';
-  } else if (combined.includes('fire') || combined.includes('flame') || combined.includes('burn') || combined.includes('explosion') || combined.includes('smoke')) {
-    energyVector = 'Thermal Energy & Flash Fire Vector';
-    lifeSavingRule = 'Hot Work Controls & Emergency Response';
-    recommendedAction = 'Activate emergency deluge system, evacuate sector, establish fire perimeter, and standby medical.';
+  // 1. Medical emergency, injured worker, or health incident -> Ambulance / Medical
+  if (combined.includes('medical') || combined.includes('injur') || combined.includes('casualty') || combined.includes('unconscious') || combined.includes('first aid') || combined.includes('ambulance') || combined.includes('bleeding') || combined.includes('trauma') || combined.includes('cardiac') || combined.includes('collapsed') || combined.includes('fainted') || combined.includes('doctor') || combined.includes('paramedic') || combined.includes('health')) {
+    energyVector = 'Human Health & Emergency Medical Vector';
+    lifeSavingRule = 'Emergency Response & First Aid Care';
+    recommendedAction = 'Dispatch ambulance immediately, stabilize casualty, administer emergency first aid, and clear access route.';
     dept = 'AMBULANCE_MEDICAL';
     deptLabel = 'Ambulance / Medical 🚑';
-  } else if (combined.includes('electric') || combined.includes('wire') || combined.includes('11kv') || combined.includes('415v') || combined.includes('arc') || combined.includes('breaker') || combined.includes('switch')) {
+  } else if (combined.includes('fire') || combined.includes('flame') || combined.includes('explosion') || combined.includes('smoke') || combined.includes('blast') || combined.includes('ignition') || combined.includes('flash fire') || combined.includes('thermal')) {
+    energyVector = 'Thermal Energy & Flash Fire Vector';
+    lifeSavingRule = 'Hot Work Controls & Fire Response';
+    recommendedAction = 'Activate emergency deluge system, evacuate sector, establish fire perimeter, and deploy fire response crew.';
+    dept = 'PROCESS_SAFETY';
+    deptLabel = 'Fire & Process Safety Response 🚒';
+  } else if (combined.includes('gas') || combined.includes('leak') || combined.includes('h2s') || combined.includes('toxic') || combined.includes('chemical') || combined.includes('acid') || combined.includes('spill') || combined.includes('ammonia') || combined.includes('chlorine') || combined.includes('methane') || combined.includes('propane')) {
+    energyVector = 'Toxic & Hazardous Chemical / Gas Vector';
+    lifeSavingRule = 'Hazardous Substances & Containment';
+    recommendedAction = 'Deploy gas detectors, evacuate downwind sector, don SCBA/Level B PPE, and execute emergency hazmat isolation.';
+    dept = 'HAZMAT';
+    deptLabel = 'Hazmat & Gas Emergency Team ☣️';
+  } else if (combined.includes('electric') || combined.includes('wire') || combined.includes('11kv') || combined.includes('415v') || combined.includes('arc') || combined.includes('breaker') || combined.includes('switchgear') || combined.includes('substation')) {
     energyVector = 'High Voltage Electrical (Arc Flash Hazard)';
     lifeSavingRule = 'Energy Isolation & Lockout/Tagout (LOTO)';
     recommendedAction = 'Lock out distribution board, verify zero energy state with multimeter, and inspect breaker.';
     dept = 'ELECTRICAL';
     deptLabel = 'Electrical Team ⚡';
-  } else if (combined.includes('fall') || combined.includes('scaffold') || combined.includes('height') || combined.includes('ladder') || combined.includes('roof')) {
+  } else if (combined.includes('fall') || combined.includes('scaffold') || combined.includes('height') || combined.includes('ladder') || combined.includes('roof') || combined.includes('grating')) {
     energyVector = 'Gravitational Potential Energy (Work at Height)';
     lifeSavingRule = 'Work at Height (100% Tie-Off)';
     recommendedAction = 'Immediately suspend elevated work, inspect scaffold green tag, and verify dual-lanyard harness.';
     dept = 'CIVIL_STRUCTURAL';
     deptLabel = 'Civil & Structural 🧱';
-  } else if (combined.includes('crane') || combined.includes('lift') || combined.includes('hoist') || combined.includes('sling') || combined.includes('rigging') || combined.includes('dropped')) {
+  } else if (combined.includes('crane') || combined.includes('lift') || combined.includes('hoist') || combined.includes('sling') || combined.includes('rigging') || combined.includes('dropped load')) {
     energyVector = 'Suspended Load Kinetic & Rigging Failure';
     lifeSavingRule = 'Line of Fire & Safe Mechanical Lifting';
-    recommendedAction = 'Establish 1.5x drop radius barricade, inspect sling certification, and halt tandem crane lifts.';
+    recommendedAction = 'Establish 1.5x drop radius barricade, inspect sling certification, and halt crane operations.';
     dept = 'RIGGING_LIFTING';
     deptLabel = 'Rigging & Lifting 🏗️';
-  } else if (combined.includes('chemical') || combined.includes('acid') || combined.includes('toxic') || combined.includes('spill') || combined.includes('fume')) {
-    energyVector = 'Corrosive Chemical & Acute Toxicity';
-    lifeSavingRule = 'Hazardous Substances & Chemical Containment';
-    recommendedAction = 'Deploy neutralizer absorbent, evacuate downwind sector, don Level B hazmat PPE, and notify dispatch.';
-    dept = 'HAZMAT';
-    deptLabel = 'Hazmat Team ☣️';
+  } else if (combined.includes('valve') || combined.includes('pump') || combined.includes('compressor') || combined.includes('flange') || combined.includes('pipe') || combined.includes('vibration') || combined.includes('bearing') || combined.includes('mechanical')) {
+    energyVector = 'Mechanical & Kinetic Vector';
+    lifeSavingRule = 'Work Authorization & Line of Fire';
+    recommendedAction = 'Immediate physical barrier enforcement, stop work authority, and supervisor review.';
+    dept = 'MECHANICAL';
+    deptLabel = 'Mechanical Team ⚙️';
   }
 
   return { energyVector, lifeSavingRule, recommendedAction, dept, deptLabel };
 }
 
-const DEFAULT_USER_INCIDENTS = [
-  {
-    id: 101,
-    report_number: 'REP-ID001-9821',
-    report_name: 'Hydrocarbon Leak Near Flare Line',
-    title: 'Hydrocarbon Leak: Unit 4 (Flare)',
-    description: 'Pressurized gas venting observed with unusual hissing sound near isolation flange. Combustible gas detector triggered.',
-    category: 'Hazard',
-    report_type: 'Hazard',
-    location: 'Unit 4',
-    facility_unit: 'Unit 4 (Flare)',
-    incidentLocation: {
-      latitude: 12.9725,
-      longitude: 77.5955,
-      name: 'Unit 4 (Flare)',
-      address: 'Unit 4 Flare Header & Knockout Drum, South Sector'
-    },
-    reported_by: 'Liam Vance (Field Worker)',
-    severity: 'CRITICAL',
-    risk_level: 'Critical',
-    sif_precursor_assessment: 'YES',
-    status: 'Action Required',
-    is_sif: true,
-    risk_score: 94,
-    energy_vector: 'Pressure & Flammable Hydrocarbon',
-    life_saving_rule: 'Bypass of Safety Controls & Hot Work',
-    barrier_status: 'CRITICAL BARRIER FAILED / MISSING',
-    recommended_action: 'Depressurize header, cordon 50m exclusion boundary, verify LOTO and dispatch emergency mechanical response.',
-    recommended_controls: [
-      'Isolate upstream supply valve and depressurize affected line segment.',
-      'Evacuate area and perform continuous atmospheric gas testing (0% LEL).',
-      'Inspect flange gasket, valve seals, and fittings for degradation.',
-      'Establish safety exclusion perimeter until re-pressurization tests pass.'
-    ],
-    reasoning: 'High-pressure flammable gas release in vicinity of ignition sources constitutes an unmitigated Life-Threatening SIF Precursor.',
-    assigned_department: 'MECHANICAL',
-    assigned_department_label: 'Mechanical & Piping',
-    photo_attached: true,
-    created_at: new Date(Date.now() - 25 * 60 * 1000).toISOString()
-  },
-  {
-    id: 102,
-    report_number: 'REP-ID001-8742',
-    report_name: 'Missing Scaffolding Toe-Boards at High Elevation',
-    title: 'Unsafe Condition: Unit 2 (FCC)',
-    description: 'Scaffold platform at 18 meters missing toe-boards and mid-rail on western side. Heavy tools placed near open edge over active walkway.',
-    category: 'Unsafe Condition',
-    report_type: 'Unsafe Condition',
-    location: 'Unit 2',
-    facility_unit: 'Unit 2 (FCC)',
-    incidentLocation: {
-      latitude: 12.9710,
-      longitude: 77.5940,
-      name: 'Unit 2 (FCC)',
-      address: 'Unit 2 FCC Reactor Column, Level 3 Scaffolding'
-    },
-    reported_by: 'Liam Vance (Field Worker)',
-    severity: 'CRITICAL',
-    risk_level: 'Critical',
-    sif_precursor_assessment: 'YES',
-    status: 'Action Required',
-    is_sif: true,
-    risk_score: 91,
-    energy_vector: 'Gravity / Fall from Height',
-    life_saving_rule: 'Working at Height',
-    barrier_status: 'BARRIER DEGRADED / INCOMPLETE',
-    recommended_action: 'Red-tag scaffolding immediately, stop work at height, install certified toe-boards and secondary tool lanyards.',
-    recommended_controls: [
-      'Ensure certified 100% tie-off with inspected harness and lanyard.',
-      'Install top-rail, mid-rail, and toe-board fall protection barriers.',
-      'Red-tag scaffold or ladder until certified inspection sign-off.',
-      'Clear walkway of trip hazards and verify secure planking.'
-    ],
-    reasoning: 'Fall from 18m or dropped object impact from this elevation has lethal energy vector with direct SIF potential.',
-    assigned_department: 'SAFETY',
-    assigned_department_label: 'Safety Inspection Team',
-    photo_attached: false,
-    created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
-  },
-  {
-    id: 103,
-    report_number: 'REP-ID001-6519',
-    report_name: 'Improper Cable Routing in Control Corridor',
-    title: 'Near Miss: Unit 1 (CDU)',
-    description: 'Temporary 415V supply cable routed across walkway without rubber cable protector ramps. Worker tripped but avoided falling.',
-    category: 'Near Miss',
-    report_type: 'Near Miss',
-    location: 'Unit 1',
-    facility_unit: 'Unit 1 (CDU)',
-    incidentLocation: {
-      latitude: 12.9716,
-      longitude: 77.5946,
-      name: 'Unit 1 (CDU)',
-      address: 'Unit 1 Crude Distillation Control Corridor'
-    },
-    reported_by: 'Liam Vance (Field Worker)',
-    severity: 'MEDIUM',
-    risk_level: 'Medium',
-    sif_precursor_assessment: 'NO',
-    status: 'Under Review',
-    is_sif: false,
-    risk_score: 48,
-    energy_vector: 'Low-Voltage Electrical & Trip Hazard',
-    life_saving_rule: 'Energy Isolation & Walkway Integrity',
-    barrier_status: 'BARRIER TEMPORARILY COMPROMISED',
-    recommended_action: 'Re-route cabling overhead through cable tray and install high-visibility heavy duty ramp protectors.',
-    recommended_controls: [
-      'De-energize electrical circuit and perform Lockout/Tagout (LOTO).',
-      'Verify zero voltage using a calibrated test instrument before contact.',
-      'Inspect enclosure, insulation, and conductors for thermal damage.',
-      'Mandate qualified electrical PPE per NFPA 70E standards.'
-    ],
-    reasoning: 'Low kinetic energy trip incident without high-voltage arc hazard. Classified as non-SIF operational observation.',
-    assigned_department: 'ELECTRICAL',
-    assigned_department_label: 'Electrical Maintenance',
-    photo_attached: false,
-    created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString()
-  }
-];
+// Operational incidents are dynamically loaded from real user submissions via api.getReports()
+const DEFAULT_USER_INCIDENTS = [];
 
 export default function MobileSafetyApp() {
   // Screen Mode: 'welcome' (Splash Onboarding) | 'login' (Role & Auth) | 'app' (Main Dashboard)
@@ -298,8 +188,36 @@ export default function MobileSafetyApp() {
   const [loginError, setLoginError] = useState(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  // URL and storage sync helpers for tabs and incident filtering
+  const getInitialTab = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam) return tabParam;
+      const savedTab = sessionStorage.getItem('safetyai_active_tab');
+      if (savedTab) return savedTab;
+    } catch (e) {}
+    return 'home';
+  };
+
+  const getInitialIncidentFilter = () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const filterParam = params.get('filter') || params.get('incident_filter');
+      if (filterParam) {
+        const upper = filterParam.toUpperCase().replace('-', '_');
+        if (['ALL', 'PENDING', 'SIF', 'NON_SIF'].includes(upper)) {
+          return upper;
+        }
+      }
+      const savedFilter = sessionStorage.getItem('safetyai_incident_filter');
+      if (savedFilter) return savedFilter;
+    } catch (e) {}
+    return 'ALL';
+  };
+
   // Navigation tabs in main app: 'home' | 'incidents' | 'alerts' | 'more'
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [isPhoneFrame, setIsPhoneFrame] = useState(true);
 
   // Report Modal State (Full AI Safety Intelligence input features from website)
@@ -348,13 +266,93 @@ export default function MobileSafetyApp() {
   const [reportedIncidents, setReportedIncidents] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('safetyai_active_reports') || '[]');
-      if (stored && Array.isArray(stored) && stored.length > 0) return stored;
+      if (stored && Array.isArray(stored)) {
+        return stored.filter(r => r.id !== 101 && r.id !== 102 && r.id !== 103 && !r.report_number?.includes('REP-ID001-9821') && !r.report_number?.includes('REP-ID001-8742') && !r.report_number?.includes('REP-ID001-6519'));
+      }
     } catch (e) {}
-    return DEFAULT_USER_INCIDENTS;
+    return [];
   });
   const [locationViewIncident, setLocationViewIncident] = useState(null);
-  const [incidentFilter, setIncidentFilter] = useState('ALL'); // 'ALL' | 'SIF' | 'NON_SIF'
+  const [incidentFilter, setIncidentFilter] = useState(getInitialIncidentFilter); // 'ALL' | 'PENDING' | 'SIF' | 'NON_SIF'
   const [incidentsViewMode, setIncidentsViewMode] = useState('REPORTS'); // 'REPORTS' | 'TASKS'
+
+  // Standardized incident classification helpers
+  const isPendingReport = (r) => {
+    if (!r) return false;
+    const st = String(r.status || '').toLowerCase().trim();
+    const rawSt = String(r.raw_status || '').toLowerCase().trim();
+    const ast = String(r.analysis_status || '').toUpperCase().trim();
+    return (
+      st === 'pending' ||
+      st === 'verification pending' ||
+      rawSt === 'pending' ||
+      rawSt === 'verification pending' ||
+      ast === 'PENDING'
+    );
+  };
+
+  const isSifReport = (r) => {
+    if (!r) return false;
+    return Boolean(
+      r.is_sif === true ||
+      r.sif_precursor_assessment === 'YES' ||
+      (r.severity === 'CRITICAL' && r.sif_precursor_assessment !== 'NO')
+    );
+  };
+
+  const isNonSifReport = (r) => {
+    if (!r) return false;
+    return !isSifReport(r);
+  };
+
+  const updateIncidentFilter = (filterKey) => {
+    const key = (filterKey || 'ALL').toUpperCase().replace('-', '_');
+    setIncidentFilter(key);
+    try {
+      sessionStorage.setItem('safetyai_incident_filter', key);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'incidents');
+      url.searchParams.set('filter', key.toLowerCase());
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {}
+  };
+
+  const switchTab = (tabName, filterKey = null) => {
+    setActiveTab(tabName);
+    try {
+      sessionStorage.setItem('safetyai_active_tab', tabName);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tabName);
+      if (tabName === 'incidents' && filterKey) {
+        const key = filterKey.toUpperCase().replace('-', '_');
+        setIncidentFilter(key);
+        sessionStorage.setItem('safetyai_incident_filter', key);
+        url.searchParams.set('filter', key.toLowerCase());
+      } else if (tabName !== 'incidents') {
+        url.searchParams.delete('filter');
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    const handleUrlSync = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        const filter = params.get('filter') || params.get('incident_filter');
+        if (tab) setActiveTab(tab);
+        if (filter) {
+          const upper = filter.toUpperCase().replace('-', '_');
+          if (['ALL', 'PENDING', 'SIF', 'NON_SIF'].includes(upper)) {
+            setIncidentFilter(upper);
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('popstate', handleUrlSync);
+    return () => window.removeEventListener('popstate', handleUrlSync);
+  }, []);
 
   // Response Tasks & Overview Metrics
   const [tasks, setTasks] = useState([]);
@@ -366,6 +364,100 @@ export default function MobileSafetyApp() {
   const [actionNotice, setActionNotice] = useState(null);
   const [hasReadAlerts, setHasReadAlerts] = useState(false);
   const [notificationFilter, setNotificationFilter] = useState('ALL'); // 'ALL' | 'SIF' | 'ACTIONS' | 'DIRECTIVES'
+
+  // Smart Incident Notifications Engine (Real End-to-End Delivery)
+  const [smartNotifications, setSmartNotifications] = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+  const loadSmartNotifications = async () => {
+    try {
+      const data = await api.getNotifications(false, 50, 0);
+      if (data && Array.isArray(data.items)) {
+        setSmartNotifications(data.items);
+        setUnreadNotifCount(data.unread_count || 0);
+      }
+    } catch (err) {
+      console.warn('Could not load smart notifications:', err);
+    }
+  };
+
+  const handleMarkSmartNotifRead = async (id, e) => {
+    if (e) e.stopPropagation();
+    try {
+      await api.markNotificationAsRead(id);
+      setSmartNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      setUnreadNotifCount(prev => Math.max(0, prev - 1));
+    } catch (e) {
+      console.warn('Failed to mark notification read:', e);
+    }
+  };
+
+  const handleMarkAllSmartNotifsRead = async () => {
+    try {
+      await api.markAllNotificationsAsRead();
+      setSmartNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadNotifCount(0);
+    } catch (e) {
+      console.warn('Failed to mark all notifications read:', e);
+    }
+  };
+
+  const handleOpenSmartNotifIncident = async (notif) => {
+    if (!notif.is_read) {
+      await handleMarkSmartNotifRead(notif.id);
+    }
+    const reportId = notif.report_id || notif.incident_report_id || notif.metadata_payload?.report_id;
+    if (reportId) {
+      try {
+        const backendRep = await api.getReportById(reportId);
+        if (backendRep) {
+          const ai = backendRep.ai_analysis || {};
+          setAiAnalysisModalData({
+            id: backendRep.id,
+            report_number: backendRep.report_reference,
+            title: `${(backendRep.report_type || '').replace('_', ' ')} at ${backendRep.location}`,
+            description: backendRep.description,
+            category: backendRep.report_type,
+            risk_score: backendRep.ai_score || ai.overall_risk_score || (ai.sif_precursor_assessment === 'YES' ? 88 : 45),
+            risk_level: (backendRep.sif_precursor_assessment === 'YES' || ai.sif_precursor_assessment === 'YES') ? 'Critical' : 'Medium',
+            facility_unit: backendRep.incident_location_name || backendRep.location,
+            is_sif: backendRep.sif_precursor_assessment === 'YES' || ai.sif_precursor_assessment === 'YES',
+            status: backendRep.status || 'Action Required',
+            assigned_department: backendRep.assigned_team_id ? 'ASSIGNED' : 'UNASSIGNED',
+            assigned_department_label: backendRep.assigned_team_name || 'Emergency Response Team',
+            created_at: backendRep.created_at,
+            reported_by: backendRep.reporter_name || 'Frontline Worker',
+            recommended_controls: ai.recommended_controls || []
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not fetch real report details:', err);
+      }
+    }
+    const existing = reportedIncidents.find(r => r.id === reportId || r.report_number === reportId);
+    if (existing) {
+      setAiAnalysisModalData(existing);
+    } else {
+      const meta = notif.metadata_payload || {};
+      setAiAnalysisModalData({
+        id: reportId || Date.now(),
+        report_number: meta.report_reference || (reportId ? `INC-2026-${reportId}` : 'INC-2026-LIVE'),
+        title: notif.title,
+        description: notif.message,
+        category: meta.incident_type || 'INCIDENT',
+        risk_score: meta.risk_score || (notif.severity === 'CRITICAL' ? 94 : 80),
+        risk_level: notif.severity === 'CRITICAL' ? 'Critical' : 'High',
+        facility_unit: meta.location || meta.operating_unit || 'Unit 1',
+        is_sif: meta.is_sif || notif.notification_type === 'ADMIN_ALERT' || notif.severity === 'CRITICAL',
+        status: 'Action Required',
+        assigned_department: meta.team_department || 'EMERGENCY_RESPONSE',
+        assigned_department_label: meta.team_department || 'Emergency Response Team',
+        created_at: notif.created_at,
+        reported_by: meta.reporter_name || 'Frontline Worker'
+      });
+    }
+  };
 
   // Admin Role & Supervisory State
   const isAdmin = Boolean(
@@ -485,9 +577,9 @@ export default function MobileSafetyApp() {
       const data = await api.getDashboardData();
       if (data && typeof data.total_reports === 'number') {
         const total = data.total_reports || 0;
-        const sif = data.potential_sif_findings ?? data.total_sif_precursors ?? 0;
-        const nonSif = Math.max(0, total - sif);
-        const pending = data.awaiting_review !== undefined ? data.awaiting_review : 0;
+        const sif = data.sif_count ?? data.potential_sif_findings ?? data.total_sif_precursors ?? 0;
+        const nonSif = data.non_sif_count !== undefined ? data.non_sif_count : Math.max(0, total - sif);
+        const pending = data.pending_incidents_count ?? data.pending_count ?? 0;
         setAnalyticsOverview({
           totalIncidents: total,
           pending: pending,
@@ -506,19 +598,17 @@ export default function MobileSafetyApp() {
       if (Array.isArray(reports)) {
         const total = reports.length;
         const sif = reports.filter(r => r.sif_precursor_assessment === 'YES').length;
-        const nonSif = Math.max(0, total - sif);
+        const nonSif = reports.filter(r => r.sif_precursor_assessment === 'NO').length;
         const pending = reports.filter(r =>
-          r.analysis_status === 'PENDING' ||
-          r.status === 'Open' ||
-          r.status === 'In Progress' ||
-          r.status === 'Verification Pending' ||
-          !r.has_feedback
+          r.analysis_status?.toUpperCase() === 'PENDING' ||
+          r.status?.toLowerCase() === 'pending' ||
+          r.status === 'Verification Pending'
         ).length;
         setAnalyticsOverview({
           totalIncidents: total,
           pending: pending,
           sif: sif,
-          nonSif: nonSif
+          nonSif: (sif + nonSif === total) ? nonSif : Math.max(0, total - sif)
         });
         return;
       }
@@ -529,14 +619,17 @@ export default function MobileSafetyApp() {
       const storeState = getStoreState();
       const localReports = storeState.reports || [];
       const total = localReports.length;
-      const sif = localReports.filter(r => r.sif_precursor_assessment === 'YES' || r.risk_level === 'Critical').length;
-      const nonSif = Math.max(0, total - sif);
-      const pending = localReports.filter(r => r.analysis_status === 'PENDING' || r.status === 'Open').length;
+      const sif = localReports.filter(r => r.sif_precursor_assessment === 'YES').length;
+      const nonSif = localReports.filter(r => r.sif_precursor_assessment === 'NO').length;
+      const pending = localReports.filter(r =>
+        r.analysis_status?.toUpperCase() === 'PENDING' ||
+        r.status?.toLowerCase() === 'pending'
+      ).length;
       setAnalyticsOverview({
         totalIncidents: total,
         pending: pending,
         sif: sif,
-        nonSif: nonSif
+        nonSif: (sif + nonSif === total) ? nonSif : Math.max(0, total - sif)
       });
     } catch (e) {}
   };
@@ -545,10 +638,14 @@ export default function MobileSafetyApp() {
     if (currentUser) {
       fetchTasks();
       fetchAnalyticsData();
+      fetchReportedIncidents();
+      loadSmartNotifications();
       const interval = setInterval(() => {
         fetchTasks();
         fetchAnalyticsData();
-      }, 5000);
+        fetchReportedIncidents();
+        loadSmartNotifications();
+      }, 10000);
       return () => clearInterval(interval);
     }
   }, [selectedDept, currentUser]);
@@ -561,6 +658,58 @@ export default function MobileSafetyApp() {
       }
     } catch (e) {
       console.warn('API fetchTasks fallback:', e);
+    }
+  };
+
+  const fetchReportedIncidents = async () => {
+    try {
+      const reports = await api.getReports();
+      if (Array.isArray(reports)) {
+        const mapped = reports.map(r => ({
+          id: r.id,
+          report_number: r.report_reference,
+          report_reference: r.report_reference,
+          report_name: r.identified_hazard || r.report_type || 'Safety Incident',
+          title: r.identified_hazard ? `${r.identified_hazard}` : `${r.report_type || 'Incident'}: ${r.location || 'General Site'}`,
+          description: r.description || '',
+          category: r.report_type || 'Incident',
+          report_type: r.report_type || 'Incident',
+          location: r.location || 'General Area',
+          facility_unit: r.incident_location_name || r.location || 'Operational Area',
+          incidentLocation: {
+            latitude: r.incident_latitude,
+            longitude: r.incident_longitude,
+            name: r.incident_location_name || r.location,
+            address: r.incident_address || r.location
+          },
+          incident_latitude: r.incident_latitude,
+          incident_longitude: r.incident_longitude,
+          incident_address: r.incident_address,
+          reported_by: r.reporter_name || 'Worker',
+          severity: r.sif_precursor_assessment === 'YES' ? 'CRITICAL' : 'MEDIUM',
+          risk_level: r.sif_precursor_assessment === 'YES' ? 'Critical' : 'Low',
+          sif_precursor_assessment: r.sif_precursor_assessment || 'NO',
+          status: r.status || (r.sif_precursor_assessment === 'YES' ? 'Action Required' : 'Under Review'),
+          raw_status: r.status,
+          analysis_status: r.analysis_status || 'COMPLETED',
+          is_sif: r.sif_precursor_assessment === 'YES',
+          risk_score: r.ai_score || (r.sif_precursor_assessment === 'YES' ? 85 : 45),
+          ai_score: r.ai_score,
+          energy_vector: r.energy_source || 'Mechanical / Physical',
+          life_saving_rule: r.life_saving_rule || 'Operational Integrity',
+          barrier_status: r.barrier_status || 'Under Review',
+          recommended_action: r.recommended_action || 'Review incident controls and implement safety measures.',
+          recommended_controls: r.recommended_controls || [],
+          reasoning: r.explanation || '',
+          assigned_department: r.assigned_department || 'SAFETY',
+          assigned_department_label: r.assigned_department_label || 'Safety Inspection Team',
+          photo_attached: false,
+          created_at: r.created_at || new Date().toISOString()
+        }));
+        setReportedIncidents(mapped);
+      }
+    } catch (e) {
+      console.warn('Could not load reports from API:', e);
     }
   };
 
@@ -638,6 +787,18 @@ export default function MobileSafetyApp() {
         userObj.role = 'RESPONDER';
         userObj.role_name = 'Ambulance & Medical Lead';
         userObj.is_admin = false;
+      } else if (cleanEmail.includes('process')) {
+        userObj.full_name = 'Sarah Chen (Process Safety)';
+        userObj.department = 'PROCESS_SAFETY';
+        userObj.role = 'RESPONDER';
+        userObj.role_name = 'Process Safety Specialist';
+        userObj.is_admin = false;
+      } else if (cleanEmail.includes('fire') || cleanEmail.includes('hazmat')) {
+        userObj.full_name = 'Elena Rostova (Hazmat Lead)';
+        userObj.department = 'HAZMAT';
+        userObj.role = 'RESPONDER';
+        userObj.role_name = 'Emergency Hazmat Specialist';
+        userObj.is_admin = false;
       } else if (cleanEmail.includes('mech')) {
         userObj.full_name = 'Marcus Sterling (Mechanical Lead)';
         userObj.department = 'MECHANICAL';
@@ -650,23 +811,17 @@ export default function MobileSafetyApp() {
         userObj.role = 'RESPONDER';
         userObj.role_name = 'Electrical Response Specialist';
         userObj.is_admin = false;
-      } else if (cleanEmail.includes('fire') || cleanEmail.includes('hazmat')) {
-        userObj.full_name = 'Elena Rostova (Hazmat Lead)';
-        userObj.department = 'HAZMAT';
+      } else if (cleanEmail.includes('rig')) {
+        userObj.full_name = 'Vikram Singh (Rigging Lead)';
+        userObj.department = 'RIGGING_LIFTING';
         userObj.role = 'RESPONDER';
-        userObj.role_name = 'Emergency Hazmat Specialist';
+        userObj.role_name = 'Rigging Response Specialist';
         userObj.is_admin = false;
       } else if (cleanEmail.includes('civil')) {
         userObj.full_name = 'Robert Chang (Civil Lead)';
         userObj.department = 'CIVIL_STRUCTURAL';
         userObj.role = 'RESPONDER';
         userObj.role_name = 'Civil Structural Specialist';
-        userObj.is_admin = false;
-      } else if (cleanEmail.includes('rig')) {
-        userObj.full_name = 'Vikram Singh (Rigging Lead)';
-        userObj.department = 'RIGGING_LIFTING';
-        userObj.role = 'RESPONDER';
-        userObj.role_name = 'Rigging Response Specialist';
         userObj.is_admin = false;
       } else if (cleanEmail.includes('admin')) {
         userObj.full_name = 'Eleanor Vance (HSE Admin)';
@@ -1297,19 +1452,25 @@ export default function MobileSafetyApp() {
 
       // 1. Persist to backend database
       try {
-        await api.createReport({
-          title: newRecord.title,
-          description: newRecord.description,
-          category: humanCategoryLabel,
-          facility_id: operatingUnit === 'Unit 1' ? 1 : operatingUnit === 'Unit 2' ? 2 : operatingUnit === 'Unit 3' ? 3 : 4,
+        const normType = humanCategoryLabel.toUpperCase().includes('ACT') ? 'UNSAFE_ACT' : humanCategoryLabel.toUpperCase().includes('NEAR') ? 'NEAR_MISS' : 'UNSAFE_CONDITION';
+        const createdRep = await api.submitReport({
+          report_type: normType,
+          description: activeText,
           location: locDisplay,
-          reported_by: newRecord.reported_by,
-          severity: newRecord.severity,
-          source: 'MOBILE_APP',
-          status: 'ANALYZED'
+          report_date: new Date().toISOString().split('T')[0],
+          incident_location_name: operatingUnit,
+          additional_context: `Severity: ${newRecord.severity}. Reported by: ${newRecord.reported_by}`,
+          incident_latitude: incidentLocObj?.latitude,
+          incident_longitude: incidentLocObj?.longitude,
+          incident_address: incidentLocObj?.address
         });
+        if (createdRep && createdRep.id) {
+          newRecord.id = createdRep.id;
+          newRecord.report_reference = createdRep.report_reference || newRecord.report_reference;
+          newRecord.report_number = createdRep.report_reference || newRecord.report_number;
+        }
       } catch (err) {
-        console.warn('API fallback:', err);
+        console.warn('API submission error:', err);
       }
 
       // 2. Persist to central safety records (SAFETY_TOTAL_REPORTS_V3) and local storage
@@ -1324,7 +1485,7 @@ export default function MobileSafetyApp() {
       setAnalyticsOverview(prev => ({
         ...prev,
         totalIncidents: prev.totalIncidents + 1,
-        pending: prev.pending + 1,
+        pending: newRecord.status?.toLowerCase() === 'pending' ? prev.pending + 1 : prev.pending,
         sif: isSIF ? prev.sif + 1 : prev.sif,
         nonSif: isSIF ? prev.nonSif : prev.nonSif + 1
       }));
@@ -2085,14 +2246,15 @@ export default function MobileSafetyApp() {
                     onClick={() => {
                       setActiveTab('alerts');
                       setHasReadAlerts(true);
+                      loadSmartNotifications();
                     }}
                     aria-label="View notifications"
                     className="relative p-2 rounded-full hover:bg-slate-50 transition-colors cursor-pointer"
                   >
                     <Bell className="w-5 h-5 text-slate-700" />
-                    {!hasReadAlerts && userAcceptedAlerts.length > 0 && (
-                      <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-xs">
-                        {userAcceptedAlerts.length}
+                    {unreadNotifCount > 0 && (
+                      <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-rose-600 text-white font-bold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                        {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
                       </span>
                     )}
                   </button>
@@ -2204,7 +2366,10 @@ export default function MobileSafetyApp() {
                         
                         {/* KPI 1: Active Incidents */}
                         <div 
-                          onClick={() => setActiveTab('incidents')}
+                          onClick={() => {
+                            updateIncidentFilter('ALL');
+                            switchTab('incidents', 'ALL');
+                          }}
                           className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-2 mb-2">
@@ -2229,7 +2394,10 @@ export default function MobileSafetyApp() {
 
                         {/* KPI 2: Pending Triage */}
                         <div 
-                          onClick={() => setActiveTab('incidents')}
+                          onClick={() => {
+                            updateIncidentFilter('PENDING');
+                            switchTab('incidents', 'PENDING');
+                          }}
                           className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-2 mb-2">
@@ -2242,7 +2410,7 @@ export default function MobileSafetyApp() {
                                   const loc = `${r.location || ''} ${r.facility_unit || ''} ${r.title || ''}`.toLowerCase();
                                   if (!loc.includes(adminSelectedUnit.toLowerCase())) return false;
                                 }
-                                return r.status === 'Under Review' || r.status === 'Action Required' || !r.status;
+                                return isPendingReport(r);
                               }).length}
                             </span>
                           </div>
@@ -2257,8 +2425,8 @@ export default function MobileSafetyApp() {
                         {/* KPI 3: SIF Precursors */}
                         <div 
                           onClick={() => {
-                            setIncidentFilter('SIF');
-                            setActiveTab('incidents');
+                            updateIncidentFilter('SIF');
+                            switchTab('incidents', 'SIF');
                           }}
                           className="bg-white rounded-2xl p-4 border border-rose-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
                         >
@@ -2272,7 +2440,7 @@ export default function MobileSafetyApp() {
                                   const loc = `${r.location || ''} ${r.facility_unit || ''} ${r.title || ''}`.toLowerCase();
                                   if (!loc.includes(adminSelectedUnit.toLowerCase())) return false;
                                 }
-                                return r.is_sif;
+                                return isSifReport(r);
                               }).length}
                             </span>
                           </div>
@@ -2286,7 +2454,10 @@ export default function MobileSafetyApp() {
 
                         {/* KPI 4: Resolved Today */}
                         <div 
-                          onClick={() => setActiveTab('incidents')}
+                          onClick={() => {
+                            updateIncidentFilter('ALL');
+                            switchTab('incidents', 'ALL');
+                          }}
                           className="bg-white rounded-2xl p-4 border border-emerald-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
                         >
                           <div className="flex items-center gap-2 mb-2">
@@ -2428,17 +2599,27 @@ export default function MobileSafetyApp() {
                         </div>
 
                         <div className="space-y-2">
-                          {reportedIncidents
-                            .filter(r => {
-                              if (!r.is_sif) return false;
-                              if (adminSelectedUnit !== 'ALL') {
-                                const loc = `${r.location || ''} ${r.facility_unit || ''} ${r.title || ''}`.toLowerCase();
-                                if (!loc.includes(adminSelectedUnit.toLowerCase())) return false;
-                              }
-                              return r.status !== 'Resolved';
-                            })
-                            .slice(0, 2)
-                            .map(report => (
+                          {(() => {
+                            const sifList = reportedIncidents
+                              .filter(r => {
+                                if (!r.is_sif) return false;
+                                if (adminSelectedUnit !== 'ALL') {
+                                  const loc = `${r.location || ''} ${r.facility_unit || ''} ${r.title || ''}`.toLowerCase();
+                                  if (!loc.includes(adminSelectedUnit.toLowerCase())) return false;
+                                }
+                                return r.status !== 'Resolved';
+                              })
+                              .slice(0, 2);
+
+                            if (sifList.length === 0) {
+                              return (
+                                <div className="bg-white rounded-2xl p-4 border border-slate-200/90 text-center">
+                                  <p className="text-xs font-semibold text-slate-500">No active SIF incidents reported in this zone.</p>
+                                </div>
+                              );
+                            }
+
+                            return sifList.map(report => (
                               <div
                                 key={report.id || report.report_number}
                                 className="bg-white rounded-2xl p-3.5 border border-rose-200/90 shadow-2xs space-y-2"
@@ -2480,7 +2661,8 @@ export default function MobileSafetyApp() {
                                   </button>
                                 </div>
                               </div>
-                            ))}
+                            ));
+                          })()}
                         </div>
                       </div>
 
@@ -2701,7 +2883,10 @@ export default function MobileSafetyApp() {
                           
                           {/* CARD 1: Total Incidents */}
                           <div 
-                            onClick={() => setActiveTab('incidents')}
+                            onClick={() => {
+                              updateIncidentFilter('ALL');
+                              switchTab('incidents', 'ALL');
+                            }}
                             className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
                           >
                             <div className="flex items-center gap-2 mb-2">
@@ -2719,7 +2904,10 @@ export default function MobileSafetyApp() {
 
                           {/* CARD 2: Pending */}
                           <div 
-                            onClick={() => setActiveTab('incidents')}
+                            onClick={() => {
+                              updateIncidentFilter('PENDING');
+                              switchTab('incidents', 'PENDING');
+                            }}
                             className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
                           >
                             <div className="flex items-center gap-2 mb-2">
@@ -2737,7 +2925,10 @@ export default function MobileSafetyApp() {
 
                           {/* CARD 3: SIF */}
                           <div 
-                            onClick={() => setActiveTab('incidents')}
+                            onClick={() => {
+                              updateIncidentFilter('SIF');
+                              switchTab('incidents', 'SIF');
+                            }}
                             className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
                           >
                             <div className="flex items-center gap-2 mb-2">
@@ -2755,7 +2946,10 @@ export default function MobileSafetyApp() {
 
                           {/* CARD 4: Non-SIF */}
                           <div 
-                            onClick={() => setActiveTab('incidents')}
+                            onClick={() => {
+                              updateIncidentFilter('NON_SIF');
+                              switchTab('incidents', 'NON_SIF');
+                            }}
                             className="bg-white rounded-2xl p-4 border border-slate-100 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
                           >
                             <div className="flex items-center gap-2 mb-2">
@@ -3163,13 +3357,9 @@ export default function MobileSafetyApp() {
                       </p>
                     </div>
                     <button
-                      onClick={() => {
-                        try {
-                          const stored = JSON.parse(localStorage.getItem('safetyai_active_reports') || '[]');
-                          if (stored && Array.isArray(stored) && stored.length > 0) {
-                            setReportedIncidents(stored);
-                          }
-                        } catch (e) {}
+                      onClick={async () => {
+                        await fetchReportedIncidents();
+                        await fetchAnalyticsData();
                       }}
                       className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs shadow-2xs cursor-pointer"
                       title="Refresh Records"
@@ -3236,17 +3426,18 @@ export default function MobileSafetyApp() {
                         </div>
                       )}
 
-                      {/* Filter Chips: All | SIF | Non-SIF */}
+                      {/* Filter Chips: All | Pending | SIF | Non-SIF */}
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
                         {[
                           { id: 'ALL', label: `All Reports (${reportedIncidents.length})` },
-                          { id: 'SIF', label: `🚨 SIF (${reportedIncidents.filter(r => r.is_sif).length})` },
-                          { id: 'NON_SIF', label: `Non-SIF (${reportedIncidents.filter(r => !r.is_sif).length})` }
+                          { id: 'PENDING', label: `⏳ Pending (${reportedIncidents.filter(isPendingReport).length})` },
+                          { id: 'SIF', label: `🚨 SIF (${reportedIncidents.filter(isSifReport).length})` },
+                          { id: 'NON_SIF', label: `🛡️ Non-SIF (${reportedIncidents.filter(isNonSifReport).length})` }
                         ].map(chip => (
                           <button
                             key={chip.id}
                             type="button"
-                            onClick={() => setIncidentFilter(chip.id)}
+                            onClick={() => updateIncidentFilter(chip.id)}
                             className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 border transition-all cursor-pointer ${
                               incidentFilter === chip.id
                                 ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
@@ -3260,17 +3451,71 @@ export default function MobileSafetyApp() {
 
                       {/* Incident Cards Feed */}
                       <div className="space-y-3">
-                        {reportedIncidents
-                          .filter(r => {
+                        {(() => {
+                          const filtered = reportedIncidents.filter(r => {
                             if (isAdmin && adminSelectedUnit !== 'ALL') {
                               const loc = `${r.location || ''} ${r.facility_unit || ''} ${r.incidentLocation?.name || ''} ${r.title || ''}`.toLowerCase();
                               if (!loc.includes(adminSelectedUnit.toLowerCase())) return false;
                             }
-                            if (incidentFilter === 'SIF') return r.is_sif;
-                            if (incidentFilter === 'NON_SIF') return !r.is_sif;
+                            if (incidentFilter === 'PENDING') return isPendingReport(r);
+                            if (incidentFilter === 'SIF') return isSifReport(r);
+                            if (incidentFilter === 'NON_SIF') return isNonSifReport(r);
                             return true;
-                          })
-                          .map(report => (
+                          });
+
+                          if (filtered.length === 0) {
+                            const getEmptyStateContent = () => {
+                              switch (incidentFilter) {
+                                case 'PENDING':
+                                  return {
+                                    icon: <Clock className="w-6 h-6 text-amber-500" />,
+                                    title: 'No Pending Incidents',
+                                    description: 'There are currently no incidents in Pending status. All reports have been analyzed.'
+                                  };
+                                case 'SIF':
+                                  return {
+                                    icon: <AlertTriangle className="w-6 h-6 text-rose-500" />,
+                                    title: 'No SIF Incidents',
+                                    description: 'No incidents are currently classified as SIF precursors under current criteria.'
+                                  };
+                                case 'NON_SIF':
+                                  return {
+                                    icon: <ShieldCheck className="w-6 h-6 text-emerald-500" />,
+                                    title: 'No Non-SIF Incidents',
+                                    description: 'No incidents are classified as Non-SIF in this view.'
+                                  };
+                                default:
+                                  return {
+                                    icon: <FileText className="w-6 h-6 text-slate-400" />,
+                                    title: 'No Incidents Found',
+                                    description: 'No incident reports match your current filter selection.'
+                                  };
+                              }
+                            };
+                            const emptyInfo = getEmptyStateContent();
+                            return (
+                              <div className="bg-white rounded-2xl p-8 border border-slate-200/90 text-center space-y-2 shadow-2xs">
+                                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto">
+                                  {emptyInfo.icon}
+                                </div>
+                                <h3 className="text-sm font-bold text-slate-800">{emptyInfo.title}</h3>
+                                <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                                  {emptyInfo.description}
+                                </p>
+                                {incidentFilter !== 'ALL' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => updateIncidentFilter('ALL')}
+                                    className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                                  >
+                                    View All Incidents ({reportedIncidents.length})
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          return filtered.map(report => (
                             <div
                               key={report.id || report.report_number}
                               className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3 hover:shadow-sm transition-all"
@@ -3345,13 +3590,25 @@ export default function MobileSafetyApp() {
                               </div>
 
                             </div>
-                          ))}
+                          ));
+                        })()}
                       </div>
                     </>
                   ) : (
                     /* RESPONDER TASKS VIEW (when toggled by Responder role) */
                     <div className="space-y-3">
-                      {tasks.map(task => {
+                      {tasks.length === 0 ? (
+                        <div className="bg-white rounded-2xl p-8 border border-slate-200/90 text-center space-y-2">
+                          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                            <CheckCircle2 className="w-6 h-6" />
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">No Response Tasks Assigned</h3>
+                          <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                            There are currently no active response tasks assigned to your department. Tasks are dispatched when incidents are reported.
+                          </p>
+                        </div>
+                      ) : (
+                        tasks.map(task => {
                         const isClaimed = task.status === 'ACCEPTED' || task.status === 'SUBMITTED_FOR_VERIFICATION' || task.status === 'VERIFIED';
                         const isVerified = task.status === 'VERIFIED';
                         const isPending = task.status === 'SUBMITTED_FOR_VERIFICATION';
@@ -3426,7 +3683,7 @@ export default function MobileSafetyApp() {
                             </div>
                           </div>
                         );
-                      })}
+                      }))}
                     </div>
                   )}
 
@@ -3567,29 +3824,141 @@ export default function MobileSafetyApp() {
                 </div>
               )}
 
-              {/* TAB: ALERTS (Broadcast Directives & Department Action Notifications) */}
+              {/* TAB: ALERTS (Broadcast Directives, Live Smart Notifications & Responder Dispatches) */}
               {activeTab === 'alerts' && (
                 <div className="space-y-4 animate-fadeIn">
 
-                  {/* ADMIN NOTIFICATIONS CENTER (when isAdmin) */}
-                  {isAdmin && (
-                    <div className="space-y-3">
-                      {/* Top Header */}
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-                            <Bell className="w-4 h-4 text-blue-600" />
-                            <span>Safety Notifications</span>
-                          </h2>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Live incident dispatches, SIF precursor warnings & response updates
-                          </p>
-                        </div>
+                  {/* 1. SMART INCIDENT NOTIFICATIONS STREAM (Live Severity & Capability Routing) */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                          <Bell className="w-4 h-4 text-blue-600" />
+                          <span>{isAdmin ? 'Supervisory Incident Notifications' : 'Dispatched Incident Notifications'}</span>
+                        </h2>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {isAdmin 
+                            ? 'SIF precursor alerts, high-risk incident reports & dispatcher escalations'
+                            : 'Immediate response dispatches matched to your technical capabilities'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {unreadNotifCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleMarkAllSmartNotifsRead}
+                            className="px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold transition-colors cursor-pointer"
+                          >
+                            Mark All Read
+                          </button>
+                        )}
                         <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 font-mono">
-                          {reportedIncidents.length + tasks.filter(t => t.status === 'SUBMITTED_FOR_VERIFICATION').length} Active
+                          {unreadNotifCount} Unread
                         </span>
                       </div>
+                    </div>
 
+                    {smartNotifications.length === 0 ? (
+                      <div className="p-4 rounded-2xl bg-white border border-slate-200 text-center text-xs text-slate-500 shadow-2xs space-y-1">
+                        <ShieldAlert className="w-5 h-5 mx-auto text-slate-400" />
+                        <div className="font-bold text-slate-700">No Pending Incident Alerts</div>
+                        <p className="text-[11px] text-slate-400">
+                          {isAdmin 
+                            ? 'No unreviewed SIF or critical incidents at your operating units.'
+                            : 'No emergency response dispatches currently requiring your team.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {smartNotifications.map(notif => {
+                          const meta = notif.metadata_payload || {};
+                          const isCrit = notif.severity === 'CRITICAL' || notif.notification_type === 'ADMIN_SIF_ALERT';
+                          return (
+                            <div
+                              key={`smart-notif-${notif.id}`}
+                              className={`bg-white rounded-2xl p-4 border shadow-2xs space-y-2.5 relative overflow-hidden transition-all hover:shadow-xs ${
+                                isCrit ? 'border-rose-200' : 'border-slate-200'
+                              } ${!notif.is_read ? 'ring-1 ring-blue-500/30 bg-blue-50/15' : ''}`}
+                            >
+                              <div className={`absolute top-0 left-0 right-0 h-1 ${isCrit ? 'bg-rose-500' : 'bg-blue-600'}`} />
+                              <div className="flex items-start justify-between gap-2 pt-0.5">
+                                <div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black font-mono tracking-wider ${
+                                      isCrit ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {notif.notification_type === 'ADMIN_SIF_ALERT' ? '🚨 SIF PRECURSOR ALERT'
+                                        : notif.notification_type === 'ADMIN_CRITICAL_ALERT' ? '⚠️ HIGH-RISK INCIDENT'
+                                        : notif.notification_type === 'DISPATCH_RESPONDER' ? '⚡ EMERGENCY DISPATCH'
+                                        : notif.notification_type === 'ESCALATION_ADMIN' ? '🛡️ DISPATCH ESCALATION'
+                                        : '📝 SAFETY NOTICE'}
+                                    </span>
+                                    {meta.operating_unit && (
+                                      <span className="text-[10px] font-bold text-slate-600 font-mono bg-slate-100 px-1.5 py-0.2 rounded">
+                                        {meta.operating_unit}
+                                      </span>
+                                    )}
+                                    {meta.risk_score !== undefined && (
+                                      <span className={`text-[10px] font-black font-mono px-1.5 py-0.2 rounded ${
+                                        meta.risk_score >= 70 ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'
+                                      }`}>
+                                        Risk: {meta.risk_score}/100
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h3 className="text-xs font-bold text-slate-900 mt-1">
+                                    {notif.title}
+                                  </h3>
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                  {notif.created_at ? new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+                                </span>
+                              </div>
+
+                              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                {notif.message}
+                              </p>
+
+                              {/* Delivery channels indicator & action */}
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+                                <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
+                                  <span className="text-emerald-600 font-bold">In-App ✓</span>
+                                  <span>•</span>
+                                  <span>Email {notif.email_status === 'DELIVERED' ? '✓' : '—'}</span>
+                                  <span>•</span>
+                                  <span>Push {notif.push_status === 'DELIVERED' ? '✓' : '—'}</span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  {!notif.is_read && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleMarkSmartNotifRead(notif.id, e)}
+                                      className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[10px] cursor-pointer"
+                                    >
+                                      Mark Read
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenSmartNotifIncident(notif)}
+                                    className="px-2.5 py-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                                  >
+                                    <Sparkles className="w-3 h-3 text-amber-300" />
+                                    <span>Open Incident & Respond</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ADMIN LEGACY OVERVIEW & DIRECTIVES (when isAdmin) */}
+                  {isAdmin && (
+                    <div className="space-y-3">
                       {/* Filter Chips: All | SIF Alerts | Verification Tasks | Directives */}
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
                         {[
@@ -5476,7 +5845,7 @@ export default function MobileSafetyApp() {
                 {/* 1. Overview */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('home')}
+                  onClick={() => switchTab('home')}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                     activeTab === 'home' ? 'text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600'
                   }`}
@@ -5488,7 +5857,7 @@ export default function MobileSafetyApp() {
                 {/* 2. Available Reports Queue */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('available')}
+                  onClick={() => switchTab('available')}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                     activeTab === 'available' ? 'text-amber-600 font-bold' : 'text-slate-400 hover:text-slate-600'
                   }`}
@@ -5508,7 +5877,7 @@ export default function MobileSafetyApp() {
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveTab('assigned');
+                    switchTab('assigned');
                     setAssignedTabFilter('ALL');
                   }}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
@@ -5530,8 +5899,9 @@ export default function MobileSafetyApp() {
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveTab('alerts');
+                    switchTab('alerts');
                     setHasReadAlerts(true);
+                    loadSmartNotifications();
                   }}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                     activeTab === 'alerts' ? 'text-rose-600 font-bold' : 'text-slate-400 hover:text-slate-600'
@@ -5539,9 +5909,9 @@ export default function MobileSafetyApp() {
                 >
                   <div className="relative">
                     <Bell className="w-5 h-5 stroke-[2.2]" />
-                    {newAvailableReports.length > 0 && (
+                    {(unreadNotifCount > 0 || newAvailableReports.length > 0) && (
                       <span className="absolute -top-1 -right-2 min-w-4 h-4 px-1 bg-rose-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-2xs font-mono">
-                        {newAvailableReports.length}
+                        {unreadNotifCount || newAvailableReports.length}
                       </span>
                     )}
                   </div>
@@ -5551,7 +5921,7 @@ export default function MobileSafetyApp() {
                 {/* 5. Responder Profile */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('more')}
+                  onClick={() => switchTab('more')}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                     activeTab === 'more' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
                   }`}
@@ -5566,7 +5936,7 @@ export default function MobileSafetyApp() {
               <nav aria-label="Main Navigation" className="h-18 bg-white border-t border-slate-100 px-3 flex items-center justify-between sticky bottom-0 z-40 shadow-lg shadow-slate-200/50">
                 
                 <button
-                  onClick={() => setActiveTab('home')}
+                  onClick={() => switchTab('home')}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                     activeTab === 'home' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
                   }`}
@@ -5576,7 +5946,7 @@ export default function MobileSafetyApp() {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('incidents')}
+                  onClick={() => switchTab('incidents')}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                     activeTab === 'incidents' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
                   }`}
@@ -5588,7 +5958,7 @@ export default function MobileSafetyApp() {
                 {isAdmin ? (
                   /* Admin Dedicated Tasks Sign-off Tab */
                   <button
-                    onClick={() => setActiveTab('tasks')}
+                    onClick={() => switchTab('tasks')}
                     className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                       activeTab === 'tasks' ? 'text-amber-600 font-bold' : 'text-slate-400 hover:text-slate-600'
                     }`}
@@ -5622,8 +5992,9 @@ export default function MobileSafetyApp() {
 
                 <button
                   onClick={() => {
-                    setActiveTab('alerts');
+                    switchTab('alerts');
                     setHasReadAlerts(true);
+                    loadSmartNotifications();
                   }}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                     activeTab === 'alerts' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
@@ -5631,17 +6002,23 @@ export default function MobileSafetyApp() {
                 >
                   <div className="relative">
                     <Bell className="w-5 h-5 stroke-[2.2]" />
-                    {!hasReadAlerts && (userAcceptedAlerts.length > 0 || (broadcastNotices.length > 0 && !isAdmin) || (isAdmin && reportedIncidents.some(r => r.is_sif))) && (
-                      <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border border-white">
-                        {isAdmin ? reportedIncidents.filter(r => r.is_sif).length : (userAcceptedAlerts.length || broadcastNotices.length)}
+                    {unreadNotifCount > 0 ? (
+                      <span className="absolute -top-1 -right-1.5 min-w-[16px] h-3.5 px-0.5 bg-rose-600 text-white font-bold text-[8px] rounded-full flex items-center justify-center border border-white">
+                        {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
                       </span>
+                    ) : (
+                      !hasReadAlerts && (userAcceptedAlerts.length > 0 || (broadcastNotices.length > 0 && !isAdmin) || (isAdmin && reportedIncidents.some(r => r.is_sif))) && (
+                        <span className="absolute -top-1 -right-1.5 w-3.5 h-3.5 bg-red-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border border-white">
+                          {isAdmin ? reportedIncidents.filter(r => r.is_sif).length : (userAcceptedAlerts.length || broadcastNotices.length)}
+                        </span>
+                      )
                     )}
                   </div>
                   <span className="text-[10px] mt-1 font-medium">{isAdmin ? 'Notifications' : 'Alerts'}</span>
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('more')}
+                  onClick={() => switchTab('more')}
                   className={`flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
                     activeTab === 'more' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
                   }`}

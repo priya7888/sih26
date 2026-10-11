@@ -36,6 +36,7 @@ class SafetyReport(Base):
     incident_address = Column(String(500), nullable=True)
     incident_location_name = Column(String(200), nullable=True)
     assigned_admin_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    assigned_team_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     analysis_status = Column(String(50), default="PENDING", nullable=False) # PENDING, PROCESSING, COMPLETED, FAILED
     status = Column(String(50), default="Open", nullable=False) # Open, In Progress, Verification Pending, Closed
@@ -45,7 +46,25 @@ class SafetyReport(Base):
     organization = relationship("Organization", back_populates="safety_reports")
     user = relationship("User", foreign_keys=[user_id], back_populates="safety_reports")
     assigned_admin = relationship("User", foreign_keys=[assigned_admin_id])
+    assigned_team = relationship("User", foreign_keys=[assigned_team_id])
     ai_analysis = relationship("AIAnalysis", back_populates="safety_report", uselist=False, cascade="all, delete-orphan")
     feedbacks = relationship("Feedback", back_populates="safety_report", cascade="all, delete-orphan")
     weak_signals = relationship("WeakSignal", secondary="report_weak_signals", back_populates="safety_reports")
     response_tasks = relationship("ResponseTask", back_populates="safety_report", cascade="all, delete-orphan")
+
+    @property
+    def reporter_name(self):
+        return self.user.full_name if self.user else None
+
+    @property
+    def reporter_email(self):
+        return self.user.email if self.user else None
+
+    @property
+    def assigned_admin_name(self):
+        return self.assigned_admin.full_name if self.assigned_admin else None
+
+    @property
+    def assigned_team_name(self):
+        return self.assigned_team.full_name if self.assigned_team else None
+

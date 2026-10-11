@@ -190,11 +190,11 @@ def detect_and_update_weak_signals(
     # Evaluate if current report narrative itself contains an intra-report compound precursor (e.g. gas leak + fire explosion)
     intra_eval = evaluate_report_pair_or_group([cur_dict])
 
-    # 1. Retrieve prior safety reports for this organization (excluding current report)
-    prior_reports = db.query(SafetyReport).filter(
-        SafetyReport.organization_id == org_id,
-        SafetyReport.id != current_report.id
-    ).order_by(SafetyReport.id.desc()).all()
+    # 1. Retrieve prior safety reports for this organization (excluding current report if persisted)
+    prior_query = db.query(SafetyReport).filter(SafetyReport.organization_id == org_id)
+    if current_report.id is not None:
+        prior_query = prior_query.filter(SafetyReport.id != current_report.id)
+    prior_reports = prior_query.order_by(SafetyReport.id.desc()).all()
 
     if not prior_reports and not intra_eval.get("cluster_detected"):
         return {
@@ -420,9 +420,33 @@ def detect_and_update_weak_signals(
             detection_reason = intra_eval.get("reason", "Flammable gas release and fire explosion co-occur to form a vapor cloud explosion precursor.")
             recommended_action = intra_eval.get("recommended_preventive_actions", intra_eval.get("recommended_action", "Immediately shut down process and isolate ignition sources."))
             
-            all_related_ids = [current_report.id]
+            all_related_ids = [current_report.id] if current_report.id else []
             recurrence_count = 1
             
+            if current_report.id is None:
+                return {
+                    "weak_signal_detected": True,
+                    "weak_signal_id": "WS-PREVIEW",
+                    "weak_signal_title": signal_title,
+                    "weak_signal_reason": detection_reason,
+                    "escalation_path": escalation_path,
+                    "related_reports": [],
+                    "weak_signals": [{
+                        "signal_id": "WS-PREVIEW",
+                        "title": signal_title,
+                        "category": "Gas Containment & Fire Explosion Prevention",
+                        "risk_level": risk_level,
+                        "risk_score": base_risk_score,
+                        "location": current_unit,
+                        "energy_source": current_energy,
+                        "barrier_status": current_barrier,
+                        "recurrence_count": 1,
+                        "detection_reason": detection_reason,
+                        "escalation_path": escalation_path,
+                        "recommended_action": recommended_action
+                    }]
+                }
+
             existing_signal = db.query(WeakSignal).filter(
                 WeakSignal.organization_id == org_id,
                 WeakSignal.unit == norm_current_unit
@@ -590,6 +614,30 @@ def detect_and_update_weak_signals(
         "recurrence_count": recurrence_count,
         "supporting_dates": [str(m.report_date)[:10] for m in matching_report_models] + [str(current_report.report_date)[:10]]
     }
+
+    if current_report.id is None:
+        return {
+            "weak_signal_detected": True,
+            "weak_signal_id": "WS-PREVIEW",
+            "weak_signal_title": signal_title,
+            "weak_signal_reason": detection_reason,
+            "escalation_path": escalation_path,
+            "related_reports": matching_reports_info,
+            "weak_signals": [{
+                "signal_id": "WS-PREVIEW",
+                "title": signal_title,
+                "category": best_pe.get("category", "Process Safety Escalation"),
+                "risk_level": risk_level,
+                "risk_score": base_risk_score,
+                "location": current_unit,
+                "energy_source": current_energy,
+                "barrier_status": current_barrier,
+                "recurrence_count": recurrence_count,
+                "detection_reason": detection_reason,
+                "escalation_path": escalation_path,
+                "recommended_action": recommended_action
+            }]
+        }
 
     # 6. Duplicate Weak Signal Prevention: Look for existing matching WeakSignal in DB
     existing_signal = db.query(WeakSignal).filter(

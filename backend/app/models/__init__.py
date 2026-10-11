@@ -7,6 +7,7 @@ from .sif_finding import SIFFinding
 from .weak_signal import WeakSignal, WeakSignalReview, report_weak_signals
 
 from .response_task import ResponseTask
+from .notification import Notification, PushSubscription
 
 __all__ = [
     "Organization",
@@ -23,6 +24,8 @@ __all__ = [
     "WeakSignalReview",
     "report_weak_signals",
     "ResponseTask",
+    "Notification",
+    "PushSubscription",
 ]
 
 

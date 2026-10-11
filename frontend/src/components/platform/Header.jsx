@@ -3,6 +3,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const ROUTE_TITLES = {
   '/dashboard': { title: 'Good morning, Safety Team ☀', subtitle: "Here's today's safety intelligence overview." },
@@ -51,8 +52,11 @@ export default function Header({
         </div>
       </div>
 
-      {/* 2. Right Section: User Identity Profile */}
+      {/* 2. Right Section: Notification Center & User Identity Profile */}
       <div className="flex items-center gap-2.5 sm:gap-3.5">
+        {/* Notification Bell */}
+        <NotificationBell onNavigate={onNavigate} />
+
         <button
           onClick={() => onNavigate && onNavigate('/settings')}
           className="flex items-center gap-2.5 p-1.5 px-2.5 rounded-xl hover:bg-slate-50 transition-colors text-left cursor-pointer group border border-slate-200/60"

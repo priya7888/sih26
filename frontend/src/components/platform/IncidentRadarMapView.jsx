@@ -295,34 +295,36 @@ export default function IncidentRadarMapView({ onNavigate }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {(teamMembers.length > 0 ? teamMembers : Array.from({ length: 10 }).map((_, i) => ({
-              id: i + 1,
-              full_name: `Field Tech ${String(i + 1).padStart(2, '0')} (${user?.zone || 'Ops'})`,
-              email: `worker${i + 1}@gmail.com`,
-              zone: user?.zone || 'Facility Ground',
-              role: 'NORMAL_USER'
-            }))).map((worker, idx) => {
-              const workerIncidentCount = incidents.filter(inc => inc.user_id === worker.id || inc.reporter_email === worker.email).length;
-              return (
-                <div key={idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 hover:border-orange-300 transition-all flex items-center justify-between shadow-2xs">
-                  <div className="space-y-0.5">
-                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span>{worker.full_name}</span>
+          {teamMembers.length === 0 ? (
+            <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs font-semibold text-slate-700">No Team Members Assigned</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">There are currently no workers allocated to this sector.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {teamMembers.map((worker, idx) => {
+                const workerIncidentCount = incidents.filter(inc => inc.user_id === worker.id || inc.reporter_email === worker.email).length;
+                return (
+                  <div key={idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 hover:border-orange-300 transition-all flex items-center justify-between shadow-2xs">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>{worker.full_name}</span>
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-500">{worker.email}</div>
+                      <div className="text-[10px] text-slate-400">Assigned Zone: {worker.zone || user?.zone}</div>
                     </div>
-                    <div className="text-[11px] font-mono text-slate-500">{worker.email}</div>
-                    <div className="text-[10px] text-slate-400">Assigned Zone: {worker.zone || user?.zone}</div>
+                    <div className="text-right">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white border border-slate-200 text-slate-700">
+                        {workerIncidentCount} {workerIncidentCount === 1 ? 'Report' : 'Reports'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white border border-slate-200 text-slate-700">
-                      {workerIncidentCount} {workerIncidentCount === 1 ? 'Report' : 'Reports'}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : (
         /* 3. Main Map & Incidents Split View */

@@ -29,7 +29,9 @@ __pycache__/
 *$py.class
 *.db
 *.sqlite3
+*.backup*
 .env
 *random_forest.joblib
 scratch/
 sih26/
+

@@ -39,6 +39,8 @@ class AIAnalysisRequest(BaseModel):
     incident_longitude: Optional[float] = Field(None, ge=-180.0, le=180.0)
     incident_address: Optional[str] = None
     incident_location_name: Optional[str] = None
+    save_to_database: Optional[bool] = Field(default=False, description="Persist report directly to operational database")
+    save_report: Optional[bool] = Field(default=False, description="Alias for save_to_database")
 
     @model_validator(mode="before")
     @classmethod

@@ -11,8 +11,9 @@ from .routers.auth import ensure_initial_seed
 
 def seed_sample_data():
     """
-    Initializes database schema, seeds the 4 Admins and 40 Workers,
-    and populates initial realistic geolocated incidents across the 4 zones.
+    Initializes database schema and ensures essential user authentication accounts exist.
+    Does NOT seed mock or sample incident reports, ensuring all operational data reflects
+    genuine user submissions only.
     """
     # 1. Create tables and ensure columns exist
     Base.metadata.create_all(bind=engine)
@@ -20,18 +21,10 @@ def seed_sample_data():
 
     db = SessionLocal()
     try:
-        # 2. Seed 4 admins and 40 allocated workers (10 per admin)
+        # 2. Seed administrative and operational responder accounts for authentication
         ensure_initial_seed(db)
-
-        # 3. If no reports exist, seed realistic geolocated incidents for workers
-        report_count = db.query(SafetyReport).count()
-        if report_count == 0:
-            seed_initial_incidents(db)
-
-        # 4. If no response tasks exist, seed realistic response team tasks
-        task_count = db.query(ResponseTask).count()
-        if task_count == 0:
-            seed_initial_tasks(db)
+        # Note: Operational incidents and response tasks are NOT seeded automatically.
+        # The database only displays genuine user-submitted reports and tasks.
     finally:
         db.close()
 

@@ -6,7 +6,7 @@ const STORAGE_PRECURSORS_KEY = 'safetyai_admin_precursors_data';
 const STORAGE_WIPED_KEY = 'safetyai_data_wiped_fresh';
 const STORAGE_WEAK_SIGNALS_KEY = 'safetyai_weak_signals_data';
 const STORAGE_RESET_VERSION_KEY = 'safetyai_reset_version';
-const CURRENT_RESET_VERSION = 'v12_zero_operational_data_sync';
+const CURRENT_RESET_VERSION = 'v13_sync_exact_user_reports';
 
 // Perform clean slate reset on load if not on current reset version
 try {
@@ -720,149 +720,8 @@ export function subscribeSafetyStore(callback) {
   };
 }
 
-// 4 Verified Industrial Weak Signals Dated Dynamically
-export const DEFAULT_WEAK_SIGNALS = [
-  {
-    id: 1,
-    signal_id: 'WS-01',
-    title: 'Flammable Gas Flange Hissing & Micro-Leakage',
-    category: 'Gas Containment & Leak Prevention',
-    risk_level: 'High',
-    risk_score: 92,
-    first_detected_date: getTodayDateString(-5),
-    source: 'Multi-Report Acoustic & Atmospheric Telemetry',
-    potential_sif_precursor: 'Unconfined Flammable Vapor Cloud Explosion (VCE)',
-    connected_signals: [
-      'Acoustic micro-seep detected on high-pressure flange joint',
-      'Gas detector telemetry flags intermittent hydrocarbon vapor (15% LEL)',
-      'Plume migration toward non-classified utility substation switchgear',
-      'Atmospheric concentration reaches Lower Explosive Limit (LEL)',
-      'Potential SIF Precursor: Vapor Cloud Explosion & Flash Fire Event'
-    ],
-    progression_steps: [
-      { step: 'Initial Weep', trend: 'Increasing', status: 'Audible hissing noted at main flange gasket' },
-      { step: 'Vapor Expansion', trend: 'Increasing', status: 'Portable detector reads 18% LEL within 2m radius' },
-      { step: 'Atmospheric Accumulation', trend: 'Stable', status: 'Gas accumulates under pipe rack awning' },
-      { step: 'Ignition Proximity', trend: 'Increasing', status: 'Vapor plume drifts toward active switchgear panel' },
-      { step: 'Critical Precursor', trend: 'Increasing', status: 'Direct catastrophic flash fire and explosion risk' }
-    ],
-    source_reports: [
-      { report_id: 'REP-ID001-0001', report_type: 'Near Miss', date_submitted: getTodayDateString(-2), short_description: 'High-pressure gas pipeline flange suffered severe leakage with loud hissing near switchboard.' },
-      { report_id: 'REP-ID001-0003', report_type: 'Unsafe Condition', date_submitted: getTodayDateString(-4), short_description: 'Pressurized LPG cylinder valve found leaking propane gas with strong odor near workshop heater.' }
-    ],
-    review_status: 'Under Review',
-    reviewer_notes: 'Continuous gas monitoring deployed; mechanical retorquing scheduled.',
-    key_learnings: 'Deploy ultrasonic acoustic sniff tests during line startup.',
-    energy_source: 'Pressurized Hydrocarbon Gas (> 20 bar)',
-    barrier_status: 'FLANGE GASKET DEGRADED',
-    why_identified: 'Multiple independent reports documented pressurized gas leakage and audible hissing in vicinity of electrical ignition sources.'
-  },
-  {
-    id: 2,
-    signal_id: 'WS-02',
-    title: 'Electrical Switchgear Terminal Lug Overheating & Arcing',
-    category: 'Electrical Fire Safety & Prevention',
-    risk_level: 'High',
-    risk_score: 94,
-    first_detected_date: getTodayDateString(-4),
-    source: 'Infrared Thermography & Near-Miss Logs',
-    potential_sif_precursor: '415V Arc Flash Explosion & Switchboard Fire',
-    connected_signals: [
-      'Loose cable termination lug creates high electrical resistance',
-      'Terminal temperature elevates above 95°C causing insulation smoldering',
-      'Micro-arcing degrades plastic terminal block and generates ozone odor',
-      'Sustained phase-to-phase arc flash bridge forms across open cubicle',
-      'Potential SIF Precursor: Arc Flash Blast, Shrapnel & Structural Substation Fire'
-    ],
-    progression_steps: [
-      { step: 'Thermal Hotspot', trend: 'Increasing', status: 'IR thermography detected 92°C hotspot on 415V phase B lug' },
-      { step: 'Insulation Charring', trend: 'Increasing', status: 'Acrid burning plastic odor noted outside MCC room' },
-      { step: 'Micro-Arcing', trend: 'Increasing', status: 'Faint buzzing and visual scorch marks on busbar support' },
-      { step: 'Phase Flashover Risk', trend: 'Stable', status: 'Air gap ionization approaching breakdown voltage' },
-      { step: 'Arc Flash Precursor', trend: 'Increasing', status: 'Severe arc flash hazard threatening maintenance technicians' }
-    ],
-    source_reports: [
-      { report_id: 'REP-ID001-0002', report_type: 'Near Miss', date_submitted: getTodayDateString(-1), short_description: 'Electrical fire erupted inside 415V switchboard panel due to overloaded circuit breaker.' },
-      { report_id: 'REP-ID001-0006', report_type: 'Unsafe Act', date_submitted: getTodayDateString(-3), short_description: 'Electrician opened energized 11kV motor control cubicle without applying lockout padlock.' }
-    ],
-    review_status: 'Under Review',
-    reviewer_notes: 'Panel isolated and thermal imaging survey initiated.',
-    key_learnings: 'Mandate calibrated torque wrenches on all high-current busbar connections.',
-    energy_source: 'Electrical Arc Energy & Hazardous Voltage (415V / 11kV)',
-    barrier_status: 'CABLE INSULATION CHARRED',
-    why_identified: 'Correlated reports of electrical panel overheating, breaker tripping, and LOTO compliance bypass.'
-  },
-  {
-    id: 3,
-    signal_id: 'WS-03',
-    title: 'Hot Work Welding Sparks Near Unshielded Flammables',
-    category: 'Hot Work & Fire Prevention',
-    risk_level: 'Medium',
-    risk_score: 86,
-    first_detected_date: getTodayDateString(-6),
-    source: 'Field Safety Walkdowns & Permit Audits',
-    potential_sif_precursor: 'Combustible Solvent Flash Fire & Structural Bay Conflagration',
-    connected_signals: [
-      'Angle grinding and welding torch generate molten slag sparks (1200°C)',
-      'Sparks project beyond 10-meter radius across fabrication floor',
-      'Molten embers land on solvent-soaked cleaning rags and open chemical drum',
-      'Vapor flash fire ignites and spreads toward bulk storage barrels',
-      'Potential SIF Precursor: Fabrication Workshop Flame Engulfment'
-    ],
-    progression_steps: [
-      { step: 'Spark Scatter', trend: 'Increasing', status: 'Grinding sparks observed travelling 8 meters across bay' },
-      { step: 'Fire Blanket Deficit', trend: 'Stable', status: 'Spark containment screens omitted during structural welding' },
-      { step: 'Solvent Proximity', trend: 'Increasing', status: 'Open degreaser solvent container left within 4 meters' },
-      { step: 'Smoldering Smear', trend: 'Increasing', status: 'Oily rag showed localized charring prior to water dousing' },
-      { step: 'Flash Fire Threat', trend: 'Increasing', status: 'Critical SIF precursor of full-scale workshop conflagration' }
-    ],
-    source_reports: [
-      { report_id: 'REP-ID001-0004', report_type: 'Unsafe Act', date_submitted: getTodayDateString(-2), short_description: 'Angle grinding sparks near open solvent drum ignited oily rags causing an immediate flash fire.' },
-      { report_id: 'REP-ID001-0010', report_type: 'Unsafe Act', date_submitted: getTodayDateString(-5), short_description: 'Cutting torch operated without flashback arrestor on oxygen cylinder line near maintenance bay.' }
-    ],
-    review_status: 'Under Review',
-    reviewer_notes: 'Hot work permit stopped; fire blanket barricades reinstalled.',
-    key_learnings: 'Enforce certified continuous Fire Watch on all grinding and welding tasks.',
-    energy_source: 'Thermal Molten Slag & Chemical Solvent Flame',
-    barrier_status: 'FIRE RETARDANT CURTAIN MISSING',
-    why_identified: 'Repeated observations of hot work conducted near unshielded solvent residues without fire watch.'
-  },
-  {
-    id: 4,
-    signal_id: 'WS-04',
-    title: 'Scaffold Plank Dislodgement & Fall Arrest Anchorage Defect',
-    category: 'Working at Height & Fall Hazard',
-    risk_level: 'High',
-    risk_score: 90,
-    first_detected_date: getTodayDateString(-7),
-    source: 'Height Safety Audits & Scaffolding Inspections',
-    potential_sif_precursor: 'Fatal Fall From Height (>9m) & Dropped Object Impact',
-    connected_signals: [
-      'Scaffold boards displaced or missing toe-boards at elevated deck',
-      'Technicians work without certified 5,000-lb overhead anchor point',
-      'Unsecured tools and heavy grating positioned near open floor edge',
-      'Loss of footing leads to uncontrolled fall through open scaffold void',
-      'Potential SIF Precursor: Fatal Elevated Fall or Fatal Struck-By Incident'
-    ],
-    progression_steps: [
-      { step: 'Grating Shift', trend: 'Increasing', status: 'Walkway grating displaced leaving 1m opening on pump deck' },
-      { step: 'Unanchored Work', trend: 'Increasing', status: 'Contractor observed at 9m elevation without dual lanyard tie-off' },
-      { step: 'Missing Guardrails', trend: 'Stable', status: 'Intermediate guardrail unclamped for pipe spool rigging' },
-      { step: 'Drop Hazard', trend: 'Increasing', status: 'Unsecured hand tools resting directly above transit walkway' },
-      { step: 'Fatal Fall Precursor', trend: 'Increasing', status: 'Critical elevated fall potential requiring immediate stop-work' }
-    ],
-    source_reports: [
-      { report_id: 'REP-ID001-0007', report_type: 'Unsafe Condition', date_submitted: getTodayDateString(-3), short_description: 'Scaffolding plank missing at 9m elevation on distillation column without harness anchor point.' },
-      { report_id: 'REP-ID001-0012', report_type: 'Unsafe Condition', date_submitted: getTodayDateString(-4), short_description: 'Heavy steel walkway grating displaced leaving 1-meter open hole above pump deck.' }
-    ],
-    review_status: 'Under Review',
-    reviewer_notes: 'Red lockout tag applied to scaffold access ladder.',
-    key_learnings: 'Mandate daily scaffolding green-tag audits prior to shift start.',
-    energy_source: 'Gravitational Potential Energy (9m Elevation)',
-    barrier_status: 'PHYSICAL GUARDRAIL & ANCHORAGE FAILED',
-    why_identified: 'Multiple reports of unanchored work at elevation combined with missing deck grating and missing toe-boards.'
-  }
-];
+// Weak signals are detected dynamically by the AI Correlation Engine from user-submitted reports
+export const DEFAULT_WEAK_SIGNALS = [];
 
 // Get stored weak signals from localStorage or initialize with verified defaults
 export function getStoredWeakSignals() {

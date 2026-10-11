@@ -63,29 +63,38 @@ def get_organization_reports(
     search: Optional[str] = None,
     report_type: Optional[str] = None,
     analysis_status: Optional[str] = None,
+    status: Optional[str] = None,
+    sif_filter: Optional[str] = None,
     user: Optional[User] = None
 ) -> List[SafetyReportListItem]:
-    """Retrieves reports strictly scoped by role: Normal Users only see their own; Admins see their allocated workers' reports."""
+    """Retrieves operational safety reports for the authenticated organization."""
     query = db.query(SafetyReport).filter(SafetyReport.organization_id == org_id)
-
-    # Scoped segregation:
-    if user:
-        is_admin = user.role in ["ADMINISTRATOR", "CHIEF_HSE_AUDITOR", "ADMIN"] or "admin" in user.email.lower()
-        if not is_admin:
-            # Field Worker: strictly sees only their own reports
-            query = query.filter(SafetyReport.user_id == user.id)
-        else:
-            # Respective Admin: sees reports submitted by their allocated workers or themselves
-            query = query.filter(
-                (SafetyReport.assigned_admin_id == user.id) | 
-                (SafetyReport.user_id == user.id)
-            )
 
     if report_type and report_type.upper() != "ALL":
         query = query.filter(SafetyReport.report_type == report_type.upper())
     
     if analysis_status and analysis_status.upper() != "ALL":
         query = query.filter(SafetyReport.analysis_status == analysis_status.upper())
+
+    if status and status.upper() != "ALL":
+        if status.upper() == "PENDING":
+            query = query.filter(
+                (SafetyReport.status.ilike("%pending%")) | 
+                (SafetyReport.analysis_status == "PENDING")
+            )
+        else:
+            query = query.filter(SafetyReport.status.ilike(status))
+
+    if sif_filter and sif_filter.upper() != "ALL":
+        sif_key = sif_filter.upper().replace("-", "_")
+        if sif_key == "SIF":
+            query = query.join(AIAnalysis, SafetyReport.id == AIAnalysis.report_id).filter(
+                AIAnalysis.sif_precursor_assessment == "YES"
+            )
+        elif sif_key in ["NON_SIF", "NONSIF"]:
+            query = query.outerjoin(AIAnalysis, SafetyReport.id == AIAnalysis.report_id).filter(
+                (AIAnalysis.sif_precursor_assessment != "YES") | (AIAnalysis.id.is_(None))
+            )
 
     if search and search.strip():
         term = f"%{search.strip()}%"
@@ -126,6 +135,8 @@ def get_organization_reports(
             reporter_email=r.user.email if r.user else None,
             assigned_admin_id=r.assigned_admin_id,
             assigned_admin_name=r.assigned_admin.full_name if r.assigned_admin else None,
+            assigned_team_id=getattr(r, "assigned_team_id", None),
+            assigned_team_name=r.assigned_team.full_name if getattr(r, "assigned_team", None) else None,
             report_type=r.report_type,
             description=r.description,
             original_description=r.original_description or r.description,
@@ -138,6 +149,7 @@ def get_organization_reports(
             incident_address=r.incident_address,
             incident_location_name=r.incident_location_name,
             analysis_status=r.analysis_status,
+            status=r.status or "Open",
             sif_precursor_assessment=sif_assessment,
             identified_hazard=identified_hazard,
             ai_score=ai_score,

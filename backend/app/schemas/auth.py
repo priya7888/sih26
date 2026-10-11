@@ -24,6 +24,7 @@ class UserResponse(BaseModel):
     is_admin: bool = False
     role_name: str = "Normal User"
     zone: Optional[str] = None
+    department: Optional[str] = None
     assigned_admin_id: Optional[int] = None
     assigned_admin_name: Optional[str] = None
     permissions: List[str] = []

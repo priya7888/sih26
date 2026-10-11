@@ -33,11 +33,25 @@ def get_dashboard_data(
         SafetyReport.analysis_status == "COMPLETED"
     ).count()
 
-    # 3. Potential SIF Findings Count
+    # 3. SIF Findings Count (SIF Precursors)
     potential_sif_findings = db.query(func.count(func.distinct(SafetyReport.id))).join(AIAnalysis).filter(
         SafetyReport.organization_id == org_id,
         AIAnalysis.sif_precursor_assessment == "YES"
     ).scalar() or 0
+    sif_count = potential_sif_findings
+
+    # 4. Non-SIF Findings Count
+    non_sif_count = db.query(func.count(func.distinct(SafetyReport.id))).join(AIAnalysis).filter(
+        SafetyReport.organization_id == org_id,
+        AIAnalysis.sif_precursor_assessment == "NO"
+    ).scalar() or 0
+
+    # 5. Pending Incidents Count (only genuine user-submitted incidents whose actual status is pending)
+    pending_count = db.query(SafetyReport).filter(
+        SafetyReport.organization_id == org_id,
+        (func.lower(SafetyReport.status).in_(["pending", "verification pending"])) |
+        (SafetyReport.analysis_status == "PENDING")
+    ).count()
 
     sif_precursors_awaiting_review = db.query(SafetyReport).join(AIAnalysis).outerjoin(
         Feedback, Feedback.report_id == SafetyReport.id
@@ -55,7 +69,7 @@ def get_dashboard_data(
         Feedback.review_status == "COMPLETED"
     ).with_entities(func.count(func.distinct(SafetyReport.id))).scalar() or 0
 
-    # 4. Awaiting Review Count: Completed analyses without feedback
+    # 6. Awaiting Review Count: Completed analyses without feedback
     feedback_report_ids = db.query(Feedback.report_id).filter(
         Feedback.organization_id == org_id
     ).subquery()
@@ -66,7 +80,7 @@ def get_dashboard_data(
         ~SafetyReport.id.in_(feedback_report_ids)
     ).count()
 
-    # 4b. Dynamic Weak Signals Count
+    # 6b. Dynamic Weak Signals Count
     weak_signals_count = db.query(WeakSignal).filter(
         WeakSignal.organization_id == org_id
     ).count()
@@ -227,6 +241,10 @@ def get_dashboard_data(
         "completed_analysis": completed_analysis,
         "potential_sif_findings": potential_sif_findings,
         "total_sif_precursors": potential_sif_findings,
+        "sif_count": sif_count,
+        "non_sif_count": non_sif_count,
+        "pending_count": pending_count,
+        "pending_incidents_count": pending_count,
         "sif_precursors_awaiting_review": sif_precursors_awaiting_review,
         "sif_precursors_completed": sif_precursors_completed,
         "awaiting_review": awaiting_review,

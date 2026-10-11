@@ -292,16 +292,31 @@ export const api = {
 
   // Reports
   submitReport: async (reportData) => {
+    const payload = {
+      report_type: reportData.report_type || (reportData.category?.toUpperCase().includes('ACT') ? 'UNSAFE_ACT' : reportData.category?.toUpperCase().includes('NEAR') ? 'NEAR_MISS' : 'UNSAFE_CONDITION'),
+      description: reportData.description || reportData.title || '',
+      location: reportData.location || reportData.operatingUnit || 'Operational Unit',
+      report_date: reportData.report_date || new Date().toISOString().split('T')[0],
+      incident_location_name: reportData.incident_location_name || reportData.location || reportData.operatingUnit,
+      additional_context: reportData.additional_context || (reportData.category ? `Category: ${reportData.category}` : null),
+      incident_latitude: reportData.incident_latitude,
+      incident_longitude: reportData.incident_longitude,
+      incident_address: reportData.incident_address
+    };
     const res = await fetch(`${API_BASE}/reports`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(reportData)
+      body: JSON.stringify(payload)
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: 'Failed to submit report' }));
       throw new Error(err.detail || 'Failed to submit report');
     }
     return res.json();
+  },
+
+  createReport: async (reportData) => {
+    return api.submitReport(reportData);
   },
 
   batchUploadReports: async (reportsData) => {
@@ -328,6 +343,8 @@ export const api = {
     if (filters.search) params.append('search', filters.search);
     if (filters.report_type && filters.report_type !== 'ALL') params.append('report_type', filters.report_type);
     if (filters.analysis_status && filters.analysis_status !== 'ALL') params.append('analysis_status', filters.analysis_status);
+    if (filters.status && filters.status !== 'ALL') params.append('status', filters.status);
+    if (filters.sif_filter && filters.sif_filter !== 'ALL') params.append('sif_filter', filters.sif_filter);
 
     const queryStr = params.toString() ? `?${params.toString()}` : '';
     const res = await fetch(`${API_BASE}/reports${queryStr}`, {
@@ -770,6 +787,92 @@ export const api = {
       throw new Error(err.detail || 'Failed to verify task.');
     }
     return await res.json();
+  },
+
+  // Incident & Smart System Notifications
+  getNotifications: async (unreadOnly = false, limit = 50, offset = 0) => {
+    try {
+      const query = new URLSearchParams({
+        unread_only: unreadOnly ? 'true' : 'false',
+        limit: limit.toString(),
+        offset: offset.toString()
+      });
+      const res = await fetch(`${API_BASE}/notifications?${query.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return { items: [], unread_count: 0, total_count: 0 };
+    } catch (e) {
+      console.warn('Could not fetch notifications from backend:', e);
+      return { items: [], unread_count: 0, total_count: 0 };
+    }
+  },
+
+  getUnreadNotificationCount: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/unread-count`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return { unread_count: 0 };
+    } catch (e) {
+      return { unread_count: 0 };
+    }
+  },
+
+  markNotificationAsRead: async (notificationId) => {
+    const res = await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to mark notification as read');
+    }
+    return await res.json();
+  },
+
+  markAllNotificationsAsRead: async () => {
+    const res = await fetch(`${API_BASE}/notifications/read-all`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to mark all notifications as read');
+    }
+    return await res.json();
+  },
+
+  savePushSubscription: async (subscriptionData) => {
+    const res = await fetch(`${API_BASE}/notifications/push-subscription`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(subscriptionData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to register push subscription');
+    }
+    return await res.json();
+  },
+
+  getNotificationChannelStatus: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/notifications/status`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 };
 

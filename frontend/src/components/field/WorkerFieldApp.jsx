@@ -397,6 +397,27 @@ export default function WorkerFieldApp({ onNavigate, onExitToWeb }) {
         incident_location_name: facilityLocation || selectedWorker.coords.location
       };
 
+      // Persist to backend database to trigger notifications and assignment
+      try {
+        const persisted = await api.submitReport({
+          report_type: reportType || 'UNSAFE_CONDITION',
+          description: finalDescription,
+          location: facilityLocation || selectedWorker.coords.location,
+          report_date: new Date().toISOString().slice(0, 10),
+          incident_location_name: selectedWorker.zone,
+          additional_context: `Safety Factors: ${selectedFactors.join(', ')}`,
+          incident_latitude: currentGps.lat,
+          incident_longitude: currentGps.lng,
+          incident_address: `${facilityLocation || selectedWorker.coords.location} Operations Area`
+        });
+        if (persisted && persisted.id) {
+          newRecord.id = persisted.id;
+          newRecord.report_reference = persisted.report_reference || newRecord.report_reference;
+        }
+      } catch (err) {
+        console.warn('Backend persistence fallback:', err);
+      }
+
       syncBackendReportsToStore([newRecord], [], false);
       autoPersistToTotalRecords(newRecord);
 

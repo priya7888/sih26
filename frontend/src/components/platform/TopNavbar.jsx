@@ -14,6 +14,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 export default function TopNavbar({ 
   activeTab, 
@@ -137,6 +138,9 @@ export default function TopNavbar({
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="font-bold text-emerald-700">5 Live Reports</span>
             </div>
+
+            {/* Notification Bell */}
+            <NotificationBell onNavigate={(path) => { if (path === '/reports') setActiveTab('all_reports'); }} />
 
             {/* Profile Avatar & Details */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200/80">

@@ -70,6 +70,16 @@ def submit_report(
         pass
 
     db.refresh(report)
+
+    # 3. Process Smart Incident Notifications (Admin + Matched Response Teams)
+    try:
+        from ..services.notification_service import process_incident_notifications
+        analysis = db.query(AIAnalysis).filter(AIAnalysis.report_id == report.id).first()
+        process_incident_notifications(db, report, ai_analysis=analysis, reporter=current_user)
+    except Exception as notif_err:
+        pass
+
+    db.refresh(report)
     return report
 
 @router.get("", response_model=List[SafetyReportListItem])
@@ -77,16 +87,20 @@ def list_reports(
     search: Optional[str] = Query(None),
     report_type: Optional[str] = Query(None),
     analysis_status: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    sif_filter: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Lists safety reports strictly isolated to the authenticated organization and filtered by user role."""
+    """Lists safety reports strictly isolated to the authenticated organization and filtered by query parameters."""
     return get_organization_reports(
         db=db,
         org_id=current_user.organization_id,
         search=search,
         report_type=report_type,
         analysis_status=analysis_status,
+        status=status,
+        sif_filter=sif_filter,
         user=current_user
     )
 
@@ -121,6 +135,29 @@ def get_report_details(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Safety report not found or access denied."
         )
+
+    # Access control: Ensure the assigned team can see the incident and unrelated teams cannot access restricted incident details
+    if current_user.role == "RESPONDER":
+        from ..models.response_task import ResponseTask
+        from ..models.notification import Notification
+
+        is_assigned_user = (report.assigned_team_id == current_user.id)
+        has_assigned_task = db.query(ResponseTask).filter(
+            ResponseTask.report_id == report.id,
+            (ResponseTask.department == current_user.department) |
+            (ResponseTask.accepted_by_user_id == current_user.id)
+        ).first() is not None
+        has_notif = db.query(Notification).filter(
+            Notification.report_id == report.id,
+            Notification.recipient_user_id == current_user.id
+        ).first() is not None
+
+        if not (is_assigned_user or has_assigned_task or has_notif):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied. Unrelated response teams cannot access restricted incident details."
+            )
+
     return report
 
 @router.post("/{report_id}/analyze", response_model=AIAnalysisResponse)

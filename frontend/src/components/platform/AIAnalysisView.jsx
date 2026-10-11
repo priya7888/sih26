@@ -60,173 +60,7 @@ import {
 import { ALL_CHECKLIST_ITEMS, CLASSIFICATION_CHECKLISTS } from '../../data/safetyChecklistItems';
 export { ALL_CHECKLIST_ITEMS, CLASSIFICATION_CHECKLISTS };
 
-// Available uploaded safety report data from ingestion registry
-const AVAILABLE_UPLOADED_REPORTS = [
-  {
-    ref: 'OIL-BATCH-01',
-    name: 'Main Pipeline High-Pressure Gas Leakage',
-    type: 'NEAR_MISS',
-    location: 'Unit 1',
-    text: 'High-pressure gas pipeline flange developed severe leakage. Gas alarm at 65% LEL near switch.',
-    incidentLocation: {
-      latitude: 12.9716,
-      longitude: 77.5946,
-      name: 'Crude Distillation Unit (CDU)',
-      address: 'Crude Distillation Unit (Operating Sector, Primary Refining)'
-    }
-  },
-  {
-    ref: 'OIL-BATCH-02',
-    name: 'Electrical Switchboard Fire and Smoke Outbreak',
-    type: 'NEAR_MISS',
-    location: 'Unit 2',
-    text: 'Electrical fire erupted in distribution board due to overloaded breaker with open flames visible.',
-    incidentLocation: {
-      latitude: 12.9735,
-      longitude: 77.5938,
-      name: 'Electrical Substation 02 (415V Panel)',
-      address: 'Electrical Substation 02, Utilities Sector'
-    }
-  },
-  {
-    ref: 'OIL-BATCH-03',
-    name: 'Storage Shed LPG Gas Cylinder Valve Leakage',
-    type: 'UNSAFE_CONDITION',
-    location: 'Unit 3',
-    text: 'Pressurized LPG cylinder valve found leaking flammable propane gas inside storage shed.',
-    incidentLocation: {
-      latitude: 12.9680,
-      longitude: 77.5920,
-      name: 'LPG Storage Farm & Cylinder Shed',
-      address: 'LPG Storage Farm, Pressurized Vessels Sector'
-    }
-  },
-  {
-    ref: 'OIL-BATCH-04',
-    name: 'Hot Work Welding Sparks Floor Flash Fire',
-    type: 'UNSAFE_ACT',
-    location: 'Unit 4',
-    text: 'Welding sparks near solvent drum ignited oily rags on the floor causing an immediate flash fire.',
-    incidentLocation: {
-      latitude: 12.9705,
-      longitude: 77.5932,
-      name: 'Fabrication Workshop Bay 4',
-      address: 'Fabrication Workshop Bay 4, Conversion Area'
-    }
-  }
-];
-
-// Baseline 6 Total Records from Database Ledger - Simple Fire and Gas Leakage Issues
-const BASELINE_TOTAL_REPORTS = [
-  {
-    id: 1,
-    report_reference: 'REP-ID001-0001',
-    report_name: 'Compressor Station Natural Gas Pipeline Leakage',
-    report_type: 'Near Miss',
-    description: 'High-pressure natural gas pipeline flange suffered gasket blowout, releasing massive gas cloud across the compressor bay. Gas detector alarm triggered at 70% LEL in vicinity of unclassified electrical lights.',
-    location: 'Unit 1',
-    facility_unit: 'Gas Compressor Bay A',
-    report_date: '2026-09-02',
-    risk_level: 'Critical',
-    sif_precursor_assessment: 'YES',
-    ai_score: 95,
-    status: 'Action Required',
-    identified_hazard: 'Flammable Natural Gas Leakage & Vapor Cloud Explosion Hazard',
-    energy_source: 'High-Pressure Combustible Gas (60 bar)',
-    barrier_status: 'PRIMARY GASKET SEAL FAILED',
-    recommended_action: 'Trip Emergency Shutdown (ESD) valve, isolate gas supply, and replace flange gasket.'
-  },
-  {
-    id: 2,
-    report_reference: 'REP-ID001-0002',
-    report_name: 'Main Substation Electrical Cabinet Fire Outbreak',
-    report_type: 'Near Miss',
-    description: 'Electrical fire erupted inside the 415V power distribution panel due to loose cable lug overheating. Flames reached 1.5 meters high with thick toxic smoke spreading into the control room.',
-    location: 'Unit 2',
-    facility_unit: 'Electrical Substation 02',
-    report_date: '2026-09-03',
-    risk_level: 'Critical',
-    sif_precursor_assessment: 'YES',
-    ai_score: 92,
-    status: 'Action Required',
-    identified_hazard: 'Electrical Panel Fire Outbreak & Toxic Smoke Exposure',
-    energy_source: 'Thermal & Electrical Energy (415V Arc Plasma)',
-    barrier_status: 'ELECTRICAL FIRE BARRIER BREACHED',
-    recommended_action: 'Trip substation main breaker, discharge CO2 extinguisher, and clear all combustible materials.'
-  },
-  {
-    id: 3,
-    report_reference: 'REP-ID001-0003',
-    report_name: 'LPG Storage Tank Flange Flammable Gas Leakage',
-    report_type: 'Unsafe Condition',
-    description: 'Heavy propane gas leak detected around the bottom discharge flange of LPG Bulk Storage Tank 03. Flammable gas vapor pooled in low-lying ground trench near vehicle roadway without safety barricades.',
-    location: 'Unit 3',
-    facility_unit: 'LPG Storage Farm',
-    report_date: '2026-09-04',
-    risk_level: 'Critical',
-    sif_precursor_assessment: 'YES',
-    ai_score: 89,
-    status: 'Action Required',
-    identified_hazard: 'Flammable LPG Gas Leakage & Low-Lying Vapor Cloud',
-    energy_source: 'Pressurized Liquid Petroleum Gas (18 bar)',
-    barrier_status: 'TANK BOTTOM FLANGE GASKET DAMAGED',
-    recommended_action: 'Close emergency isolation valve, establish 100m cordon, and spray water curtain.'
-  },
-  {
-    id: 4,
-    report_reference: 'REP-ID001-0004',
-    report_name: 'Structural Welding Sparks Igniting Solvent Floor Fire',
-    report_type: 'Unsafe Act',
-    description: 'Welder operated cutting torch directly above open degreaser solvent tub. Falling molten slag sparks ignited cleaning solvent, causing an instant 2-meter floor fire. No fire extinguisher or fire blanket was at the work post.',
-    location: 'Unit 4',
-    facility_unit: 'Fabrication Workshop Bay 4',
-    report_date: '2026-09-01',
-    risk_level: 'Critical',
-    sif_precursor_assessment: 'YES',
-    ai_score: 86,
-    status: 'Action Required',
-    identified_hazard: 'Hot Work Welding Sparks Igniting Flammable Liquid Fire',
-    energy_source: 'Thermal Molten Slag & Chemical Solvent Flame',
-    barrier_status: 'FIRE BLANKET & HOT WORK CONTROLS OMITTED',
-    recommended_action: 'Enforce 10-meter clearance from flammables and mandate certified continuous Fire Watch.'
-  },
-  {
-    id: 5,
-    report_reference: 'REP-ID001-0005',
-    report_name: 'Staff Canteen Cooking Gas Stove Valve Micro-Leak',
-    report_type: 'Unsafe Condition',
-    description: 'Faint gas odor detected near kitchen commercial stove burner valve. Soap bubble test showed slow micro-seep on rubber hose clamp. Non-SIF low-pressure localized odor; kitchen exhaust was running.',
-    location: 'Unit 1',
-    facility_unit: 'Staff Facility Kitchen',
-    report_date: '2026-09-02',
-    risk_level: 'Low',
-    sif_precursor_assessment: 'NO',
-    ai_score: 28,
-    status: 'Under Review',
-    identified_hazard: 'Minor Low-Pressure Cooking Gas Valve Seep',
-    energy_source: 'Low-Pressure Fuel Gas (< 0.5 bar)',
-    barrier_status: 'PRIMARY VALVE SEAL AGED',
-    recommended_action: 'Tighten hose clamp, replace aged rubber gas hose, and re-test with gas detector.'
-  },
-  {
-    id: 6,
-    report_reference: 'REP-ID001-0006',
-    report_name: 'Office Smoking Area Trash Bin Smoldering Cigarette',
-    report_type: 'Near Miss',
-    description: 'Smoldering paper cup and cigarette butt found smoking inside metal trash bin outside office doorway. Extinguished immediately with a cup of water. Isolated minor housekeeping incident with zero flame spread.',
-    location: 'Unit 2',
-    facility_unit: 'Office Perimeter Walkway',
-    report_date: '2026-09-04',
-    risk_level: 'Low',
-    sif_precursor_assessment: 'NO',
-    ai_score: 19,
-    status: 'Closed',
-    identified_hazard: 'Smoldering Paper Waste in Metal Bin',
-    energy_source: 'Low Thermal Ember',
-    barrier_status: 'METAL ENCLOSURE CONTAINED EMBERS',
-    recommended_action: 'Empty waste bin, fill ash receptacle with sand, and remind staff of smoking policy.'
-  }
-];
+// Operational report descriptions are sourced dynamically from genuine user reports
 
 function getStoredTotalRecords() {
   try {
@@ -462,8 +296,11 @@ export function deriveReportName(text, type, loc, checklist = []) {
   if (!text) return `Safety Observation (${loc})`;
 
   if (isUnrelatedIssue(text, checklist)) return 'Enter Correct Issue';
-  const matched = AVAILABLE_UPLOADED_REPORTS.find(r => r.text.trim() === text.trim());
-  if (matched && matched.name) return matched.name;
+  const storedRecords = getStoredTotalRecords();
+  const matched = storedRecords.find(r => r.description && r.description.trim() === text.trim());
+  if (matched && (matched.identified_hazard || matched.title || matched.report_name)) {
+    return matched.identified_hazard || matched.title || matched.report_name;
+  }
 
   const lower = text.toLowerCase();
   if (lower.includes('gas') && (lower.includes('pipeline') || lower.includes('compressor'))) {
@@ -2024,35 +1861,41 @@ export default function AIAnalysisView() {
                     </ul>
                   </div>
 
-                  {/* Quick Sample Selector */}
-                  <div className="p-4 rounded-xl bg-orange-50/80 border border-orange-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
-                    <div>
-                      <div className="font-bold text-orange-950 text-xs uppercase tracking-wide">
-                        PREFER TO TEST A VERIFIED PLANT INCIDENT?
+                  {/* Quick Sample Selector - Only visible when genuine user reports exist */}
+                  {(() => {
+                    const userRecords = getStoredTotalRecords().filter(r => r.description && r.description.length > 5);
+                    if (userRecords.length === 0) return null;
+                    return (
+                      <div className="p-4 rounded-xl bg-orange-50/80 border border-orange-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
+                        <div>
+                          <div className="font-bold text-orange-950 text-xs uppercase tracking-wide">
+                            LOAD RECENT USER-SUBMITTED REPORT?
+                          </div>
+                          <p className="text-[11px] text-orange-800 mt-0.5">
+                            Quickly test safety intelligence analysis using an actual submitted field report.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sample = userRecords[uploadedIndex % userRecords.length];
+                            setDescription(sample.description || sample.text || '');
+                            setReportType(sample.report_type || sample.category || 'NEAR_MISS');
+                            setLocation(sample.location || 'Unit 1');
+                            if (sample.incidentLocation) {
+                              setSelectedIncidentLocation(sample.incidentLocation);
+                            }
+                            setUploadedIndex(prev => prev + 1);
+                            setValidationError('');
+                            setAnalysisResult(null);
+                          }}
+                          className="text-xs font-black uppercase tracking-wider text-white bg-[#FF5A36] hover:bg-orange-600 px-4 py-2.5 rounded-xl shrink-0 cursor-pointer transition-all shadow-xs"
+                        >
+                          Load Recent Report
+                        </button>
                       </div>
-                      <p className="text-[11px] text-orange-800 mt-0.5">
-                        Quickly populate an authentic field safety report to see SIF precursor intelligence in action.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const sample = AVAILABLE_UPLOADED_REPORTS[uploadedIndex % AVAILABLE_UPLOADED_REPORTS.length];
-                        setDescription(sample.text);
-                        setReportType(sample.type);
-                        setLocation(sample.location);
-                        if (sample.incidentLocation) {
-                          setSelectedIncidentLocation(sample.incidentLocation);
-                        }
-                        setUploadedIndex(prev => prev + 1);
-                        setValidationError('');
-                        setAnalysisResult(null);
-                      }}
-                      className="text-xs font-black uppercase tracking-wider text-white bg-[#FF5A36] hover:bg-orange-600 px-4 py-2.5 rounded-xl shrink-0 cursor-pointer transition-all shadow-xs"
-                    >
-                      Load Sample Issue
-                    </button>
-                  </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Bottom Notice: Zero Weak Signals & NO Button */}

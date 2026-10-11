@@ -422,13 +422,15 @@ def execute_direct_analysis(
     )
 
 
+    should_save = bool(getattr(request, "save_to_database", False) or getattr(request, "save_report", False))
+
     duplicate = find_duplicate_report(db, current_user.organization_id, report_create)
     is_duplicate = False
     if duplicate:
         report = duplicate
         is_duplicate = True
-        message = f"Observation matches existing report {report.report_reference}. Reusing existing analysis."
-        if request.incident_latitude is not None and report.incident_latitude is None:
+        message = f"Observation matches existing report {report.report_reference}."
+        if should_save and request.incident_latitude is not None and report.incident_latitude is None:
             report.incident_latitude = request.incident_latitude
             report.incident_longitude = request.incident_longitude
             report.incident_address = request.incident_address
@@ -436,15 +438,52 @@ def execute_direct_analysis(
             db.commit()
         # Ensure analysis exists for duplicate
         analysis = db.query(AIAnalysis).filter(AIAnalysis.report_id == report.id).first()
-        if not analysis:
+        if not analysis and should_save:
             analysis = execute_ai_analysis(db, report)
-    else:
+    elif should_save:
         # Create and persist new report in SQLite database
         report = create_report(db, report_create, current_user)
         analysis = execute_ai_analysis(db, report)
         message = f"Report created and persisted as {report.report_reference}."
 
-    db.refresh(report)
+        # Trigger smart incident notifications (Admin + Matched Response Teams)
+        try:
+            from .notification_service import process_incident_notifications
+            process_incident_notifications(
+                db=db,
+                report=report,
+                ai_analysis=analysis,
+                reporter=current_user,
+                raw_nlp_result=raw_result,
+                calculated_risk_score=risk_score
+            )
+        except Exception as notif_err:
+            pass
+        db.refresh(report)
+    else:
+        # Dry-run analysis (used by test suites, playgrounds, pre-submission previews)
+        # Keeps training/test data separate and does NOT inject records into operational safety_reports table
+        report = SafetyReport(
+            id=None,
+            report_reference=None,
+            organization_id=current_user.organization_id,
+            user_id=current_user.id,
+            report_type=norm_type,
+            description=description_for_report,
+            original_description=description,
+            normalized_description=description,
+            location=location,
+            report_date=report_date,
+            additional_context=extra_context,
+            incident_latitude=request.incident_latitude,
+            incident_longitude=request.incident_longitude,
+            incident_address=request.incident_address,
+            incident_location_name=request.incident_location_name,
+            analysis_status="COMPLETED",
+            status="Open",
+            created_at=datetime.utcnow()
+        )
+        message = "Safety observation analyzed successfully (operational record not persisted)."
 
     # Dynamic Historical Comparison & Weak Signal Detection
     try:

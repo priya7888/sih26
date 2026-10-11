@@ -145,25 +145,32 @@ def is_critical_toxic_or_chemical_release(text: str) -> bool:
         return False
     t = text.lower()
     
-    # Critical toxic, chemical, or major gas release terms
+    # Critical toxic, chemical, or major/high gas release terms
     critical_terms = [
         "h2s alarm triggered", "85 ppm", "100 ppm", "320 ppm", "500 ppm", "toxic cloud",
         "hydrofluoric acid", "50 liters of 70%", "5000-liter hot caustic", "acid sprayed directly onto",
         "fatal atmospheric asphyxiation", "unbunded gravel",
         "large gas leak", "very large gas leak", "large gas leakage", "very large gas leakage",
-        "high gas leak", "very high gas leak", "major gas leak", "major gas leakage",
-        "massive gas leak", "massive gas leakage", "uncontained gas leak", "uncontained gas leakage",
-        "gas leakage at construction", "gas leak at construction", "gas leak at", "gas leakage at",
-        "flammable gas cloud", "escaping gas cloud", "pipeline gas leak", "pipeline gas leakage",
-        "toxic gas leak", "toxic gas leakage", "natural gas leak", "ammonia leak", "chlorine leak",
-        "gas is leaking", "gas leaking"
+        "high gas leak", "very high gas leak", "high gas leakage", "very high gas leakage",
+        "major gas leak", "major gas leakage", "massive gas leak", "massive gas leakage",
+        "uncontained gas leak", "uncontained gas leakage", "uncontained gas release",
+        "critical gas leak", "critical gas leakage", "severe gas leak", "severe gas leakage",
+        "flammable gas cloud", "escaping gas cloud", "toxic gas leak", "toxic gas leakage",
+        "gas blowout", "blowout"
     ]
     if any(k in t for k in critical_terms):
         return True
 
-    # General gas leak / release pattern in active operational or construction environments
-    if any(k in t for k in ["gas leak", "gas leakage", "leaking gas", "gas is leaking", "gas release", "escaping gas", "flammable gas"]):
-        return True
+    # Gas leaks accompanied by severe magnitude or emergency escalation modifiers
+    has_gas_leak = any(k in t for k in ["gas leak", "gas leakage", "leaking gas", "gas is leaking", "gas release", "flammable gas"])
+    if has_gas_leak:
+        has_severe_modifier = any(k in t for k in [
+            "very large", "large", "very high", "high", "massive", "major", "critical",
+            "severe", "uncontained", "uncontrolled", "cloud", "escaping", "rupture",
+            "blown", "alarm", "evacuate", "evacuation", "explosion risk", "flammable atmosphere"
+        ])
+        if has_severe_modifier:
+            return True
 
     return False
 

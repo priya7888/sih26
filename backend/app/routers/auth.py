@@ -116,15 +116,15 @@ LEGACY_ALIASES = [
 
 # Dedicated 3-Role Logins: User, Admin, and 7 Department Responders
 ROLE_BASED_ACCOUNTS = [
-    {"org_id": "id001", "email": "worker@safety.com", "pass": "worker123", "officer": "Liam Vance (Field Worker)", "role": "NORMAL_USER", "zone": "Field Unit 1", "assigned_admin_email": "admin1@gmail.com"},
-    {"org_id": "id001", "email": "admin@safety.com", "pass": "admin123", "officer": "Eleanor Vance (HSE Admin)", "role": "ADMINISTRATOR", "zone": "HSE Plant Leadership"},
-    {"org_id": "id001", "email": "ambulance@safety.com", "pass": "med123", "officer": "Dr. Sunita (Ambulance Lead)", "role": "RESPONDER", "zone": "Emergency Medical Unit"},
-    {"org_id": "id001", "email": "mechanical@safety.com", "pass": "mech123", "officer": "Marcus Sterling (Mechanical)", "role": "RESPONDER", "zone": "Mechanical Maintenance"},
-    {"org_id": "id001", "email": "electrical@safety.com", "pass": "elec123", "officer": "David Thorne (Electrical)", "role": "RESPONDER", "zone": "Electrical Substation"},
-    {"org_id": "id001", "email": "process@safety.com", "pass": "process123", "officer": "Sarah Chen (Process Safety)", "role": "RESPONDER", "zone": "Process Control Center"},
-    {"org_id": "id001", "email": "rigging@safety.com", "pass": "rig123", "officer": "Vikram Singh (Rigging Lead)", "role": "RESPONDER", "zone": "Heavy Crane & Rigging"},
-    {"org_id": "id001", "email": "hazmat@safety.com", "pass": "hazmat123", "officer": "Elena Rostova (Hazmat Lead)", "role": "RESPONDER", "zone": "Hazmat LPG Bullets"},
-    {"org_id": "id001", "email": "civil@safety.com", "pass": "civil123", "officer": "Robert Chang (Civil Lead)", "role": "RESPONDER", "zone": "Civil & Structural"},
+    {"org_id": "id001", "email": "worker@safety.com", "pass": "worker123", "officer": "Liam Vance (Field Worker)", "role": "NORMAL_USER", "zone": "Field Unit 1", "assigned_admin_email": "admin1@gmail.com", "department": "OPERATIONS"},
+    {"org_id": "id001", "email": "admin@safety.com", "pass": "admin123", "officer": "Eleanor Vance (HSE Admin)", "role": "ADMINISTRATOR", "zone": "HSE Plant Leadership", "department": "HSE"},
+    {"org_id": "id001", "email": "ambulance@safety.com", "pass": "med123", "officer": "Dr. Sunita (Ambulance Lead)", "role": "RESPONDER", "zone": "Emergency Medical Unit", "department": "AMBULANCE_MEDICAL"},
+    {"org_id": "id001", "email": "mechanical@safety.com", "pass": "mech123", "officer": "Marcus Sterling (Mechanical)", "role": "RESPONDER", "zone": "Mechanical Maintenance", "department": "MECHANICAL"},
+    {"org_id": "id001", "email": "electrical@safety.com", "pass": "elec123", "officer": "David Thorne (Electrical)", "role": "RESPONDER", "zone": "Electrical Substation", "department": "ELECTRICAL"},
+    {"org_id": "id001", "email": "process@safety.com", "pass": "process123", "officer": "Sarah Chen (Process Safety)", "role": "RESPONDER", "zone": "Process Control Center", "department": "PROCESS_SAFETY"},
+    {"org_id": "id001", "email": "rigging@safety.com", "pass": "rig123", "officer": "Vikram Singh (Rigging Lead)", "role": "RESPONDER", "zone": "Heavy Crane & Rigging", "department": "RIGGING_LIFTING"},
+    {"org_id": "id001", "email": "hazmat@safety.com", "pass": "hazmat123", "officer": "Elena Rostova (Hazmat Lead)", "role": "RESPONDER", "zone": "Hazmat LPG Bullets", "department": "HAZMAT"},
+    {"org_id": "id001", "email": "civil@safety.com", "pass": "civil123", "officer": "Robert Chang (Civil Lead)", "role": "RESPONDER", "zone": "Civil & Structural", "department": "CIVIL_STRUCTURAL"},
 ]
 
 
@@ -152,7 +152,8 @@ def ensure_initial_seed(db: Session):
                 password=a_info["pass"],
                 full_name=a_info["officer"],
                 role=a_info["role"],
-                zone=a_info["zone"]
+                zone=a_info["zone"],
+                department=a_info.get("department", "ADMINISTRATION")
             )
             db.add(admin_user)
             db.commit()
@@ -163,6 +164,8 @@ def ensure_initial_seed(db: Session):
             admin_user.full_name = a_info["officer"]
             admin_user.organization_id = a_info["org_id"]
             admin_user.zone = a_info["zone"]
+            if hasattr(admin_user, "department"):
+                admin_user.department = a_info.get("department", "ADMINISTRATION")
             db.commit()
             db.refresh(admin_user)
         admin_id_map[a_info["email"]] = admin_user.id
@@ -172,6 +175,7 @@ def ensure_initial_seed(db: Session):
     for w_info in all_workers:
         assigned_admin_id = admin_id_map.get(w_info.get("assigned_admin_email"))
         worker_user = db.query(User).filter(User.email == w_info["email"]).first()
+        dept_val = w_info.get("department")
         if not worker_user:
             worker_user = User(
                 organization_id=w_info["org_id"],
@@ -180,6 +184,7 @@ def ensure_initial_seed(db: Session):
                 full_name=w_info["officer"],
                 role=w_info["role"],
                 zone=w_info["zone"],
+                department=dept_val,
                 assigned_admin_id=assigned_admin_id
             )
             db.add(worker_user)
@@ -190,6 +195,8 @@ def ensure_initial_seed(db: Session):
             worker_user.full_name = w_info["officer"]
             worker_user.organization_id = w_info["org_id"]
             worker_user.zone = w_info["zone"]
+            if dept_val:
+                worker_user.department = dept_val
             worker_user.assigned_admin_id = assigned_admin_id
             db.commit()
 
@@ -230,6 +237,7 @@ def serialize_user_response(u: User) -> UserResponse:
         is_admin=is_admin,
         role_name=role_name,
         zone=getattr(u, "zone", None),
+        department=getattr(u, "department", None),
         assigned_admin_id=getattr(u, "assigned_admin_id", None),
         assigned_admin_name=assigned_admin_name,
         permissions=permissions,

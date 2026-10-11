@@ -23,6 +23,8 @@ class SafetyReportListItem(BaseModel):
     reporter_email: Optional[str] = None
     assigned_admin_id: Optional[int] = None
     assigned_admin_name: Optional[str] = None
+    assigned_team_id: Optional[int] = None
+    assigned_team_name: Optional[str] = None
     report_type: str
     description: str
     original_description: Optional[str] = None
@@ -35,6 +37,7 @@ class SafetyReportListItem(BaseModel):
     incident_address: Optional[str] = None
     incident_location_name: Optional[str] = None
     analysis_status: str
+    status: Optional[str] = "Open"
     sif_precursor_assessment: Optional[str] = None
     identified_hazard: Optional[str] = None
     ai_score: Optional[int] = None
@@ -53,6 +56,8 @@ class SafetyReportDetail(BaseModel):
     reporter_email: Optional[str] = None
     assigned_admin_id: Optional[int] = None
     assigned_admin_name: Optional[str] = None
+    assigned_team_id: Optional[int] = None
+    assigned_team_name: Optional[str] = None
     report_type: str
     description: str
     original_description: Optional[str] = None
@@ -65,6 +70,7 @@ class SafetyReportDetail(BaseModel):
     incident_address: Optional[str] = None
     incident_location_name: Optional[str] = None
     analysis_status: str
+    status: Optional[str] = "Open"
     created_at: datetime
     updated_at: Optional[datetime] = None
     ai_analysis: Optional[AIAnalysisResponse] = None
