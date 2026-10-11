@@ -1,7 +1,7 @@
 {
   "appId": "org.safetyai.pulse",
   "appName": "SafetyPulse",
-  "webDir": "dist",
+  "webDir": "frontend/dist",
   "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https",
