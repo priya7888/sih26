@@ -462,22 +462,38 @@ export default function MobileSafetyApp() {
   // Admin Role & Supervisory State
   const isAdmin = Boolean(
     currentUser?.role === 'ADMIN' ||
-    selectedRole === 'ADMIN' ||
+    (selectedRole === 'ADMIN' && currentUser?.role !== 'WORKER' && currentUser?.role !== 'NORMAL_USER') ||
     currentUser?.is_admin ||
     (currentUser?.email && currentUser.email.toLowerCase().includes('admin'))
   );
 
-  // Responder Role & Department State
+  // Worker vs Responder Role
+  const isWorker = Boolean(
+    currentUser?.role === 'WORKER' ||
+    currentUser?.role === 'NORMAL_USER' ||
+    selectedRole === 'WORKER' ||
+    (currentUser?.role_name && currentUser.role_name.toLowerCase().includes('worker')) ||
+    (currentUser?.email && (currentUser.email.toLowerCase().includes('worker') || currentUser.email.toLowerCase().includes('user')))
+  );
+
+  // Responder Role & Department State (strictly false for workers and admins)
   const isResponder = Boolean(
-    currentUser?.role === 'RESPONDER' ||
-    selectedRole === 'RESPONDER' ||
-    (currentUser?.role_name && currentUser.role_name.toLowerCase().includes('responder')) ||
-    (currentUser?.email && (
-      currentUser.email.toLowerCase().includes('ambulance') ||
-      currentUser.email.toLowerCase().includes('mech') ||
-      currentUser.email.toLowerCase().includes('elec') ||
-      currentUser.email.toLowerCase().includes('fire')
-    ))
+    !isAdmin &&
+    !isWorker &&
+    (
+      currentUser?.role === 'RESPONDER' ||
+      selectedRole === 'RESPONDER' ||
+      (currentUser?.role_name && currentUser.role_name.toLowerCase().includes('responder')) ||
+      (currentUser?.email && (
+        currentUser.email.toLowerCase().includes('ambulance') ||
+        currentUser.email.toLowerCase().includes('mech') ||
+        currentUser.email.toLowerCase().includes('elec') ||
+        currentUser.email.toLowerCase().includes('process') ||
+        currentUser.email.toLowerCase().includes('hazmat') ||
+        currentUser.email.toLowerCase().includes('rigging') ||
+        currentUser.email.toLowerCase().includes('civil')
+      ))
+    )
   );
 
   const responderDept = currentUser?.department || selectedResponderDept || 'MECHANICAL';
@@ -755,11 +771,16 @@ export default function MobileSafetyApp() {
             localStorage.setItem('safetyai_user', JSON.stringify(res.user));
           } catch (e) {}
         }
-        const isUserResp = selectedRole === 'RESPONDER' || res.user.role === 'RESPONDER' || Boolean(res.user.department && res.user.department !== 'FIELD_OPS' && !res.user.is_admin);
+        const isWorkerSelect = selectedRole === 'WORKER' || res.user.role === 'NORMAL_USER' || (res.user.email && res.user.email.toLowerCase().includes('worker'));
+        const isUserResp = !isWorkerSelect && (
+          selectedRole === 'RESPONDER' || 
+          res.user.role === 'RESPONDER' || 
+          Boolean(res.user.department && res.user.department !== 'FIELD_OPS' && res.user.department !== 'OPERATIONS' && !res.user.is_admin)
+        );
         const resolvedUser = {
           ...res.user,
-          role: isUserResp ? 'RESPONDER' : res.user.role || selectedRole,
-          role_name: isUserResp ? 'Response Specialist' : res.user.role_name || (selectedRole === 'ADMIN' ? 'Safety Administrator' : 'Field Worker'),
+          role: isUserResp ? 'RESPONDER' : isWorkerSelect ? 'WORKER' : (res.user.role || selectedRole),
+          role_name: isUserResp ? 'Response Specialist' : isWorkerSelect ? 'Field Worker' : (res.user.role_name || (selectedRole === 'ADMIN' ? 'Safety Administrator' : 'Field Worker')),
           department: isUserResp ? (res.user.department || selectedResponderDept) : (res.user.department || 'FIELD_OPS')
         };
         setCurrentUser(resolvedUser);
@@ -2871,13 +2892,40 @@ export default function MobileSafetyApp() {
                       </div>
                     </div>
                   ) : (
-                    /* ================= WORKER OVERVIEW (UNCHANGED) ================= */
+                    /* ================= WORKER OVERVIEW ================= */
                     <>
+                      {/* WORKER SHIFT & SAFETY STATUS BANNER */}
+                      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-4 text-white shadow-sm flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>ON-DUTY SHIFT ACTIVE</span>
+                          </div>
+                          <h3 className="text-sm font-bold text-white tracking-tight">
+                            Frontline Worker Safety Console
+                          </h3>
+                          <p className="text-[11px] text-slate-300">
+                            {currentUser?.zone || 'Operating Sector 1 (CDU & Utilities)'}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] text-slate-400 block font-mono">Total Reports</span>
+                          <span className="text-xl font-black text-emerald-400 font-mono">
+                            {reportedIncidents.length}
+                          </span>
+                        </div>
+                      </div>
+
                       {/* ANALYTICS OVERVIEW (2x2 GRID) */}
                       <div className="space-y-3">
-                        <h2 className="text-sm font-bold text-slate-900 tracking-tight">
-                          Analytics Overview
-                        </h2>
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                            Incident Analytics Overview
+                          </h2>
+                          <span className="text-[10px] font-bold text-slate-400 font-mono">
+                            Live Telemetry
+                          </span>
+                        </div>
 
                         <div className="grid grid-cols-2 gap-3">
                           
@@ -2919,7 +2967,7 @@ export default function MobileSafetyApp() {
                               </span>
                             </div>
                             <div className="text-xs font-semibold text-slate-500">
-                              Pending
+                              Pending Review
                             </div>
                           </div>
 
@@ -2940,7 +2988,7 @@ export default function MobileSafetyApp() {
                               </span>
                             </div>
                             <div className="text-xs font-semibold text-slate-500">
-                              SIF
+                              SIF Precursors
                             </div>
                           </div>
 
@@ -2961,7 +3009,7 @@ export default function MobileSafetyApp() {
                               </span>
                             </div>
                             <div className="text-xs font-semibold text-slate-500">
-                              Non-SIF
+                              Non-SIF Controlled
                             </div>
                           </div>
 
@@ -2976,18 +3024,18 @@ export default function MobileSafetyApp() {
 
                         <button
                           onClick={() => openReportWithCategory('Unsafe Condition')}
-                          className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm tracking-wide shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all"
+                          className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm tracking-wide shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
                         >
                           <Plus className="w-5 h-5 stroke-[2.5]" />
-                          <span>Report Incident</span>
+                          <span>Report Incident / Observation</span>
                         </button>
 
                         <div className="grid grid-cols-3 gap-2.5 pt-1">
                           <button
                             onClick={() => openReportWithCategory('Near Miss')}
-                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5"
+                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
                           >
-                            <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                            <div className="w-9 h-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-slate-700">
                               <MapPin className="w-4 h-4 text-blue-600" />
                             </div>
                             <span className="text-xs font-bold text-slate-800">
@@ -2997,9 +3045,9 @@ export default function MobileSafetyApp() {
 
                           <button
                             onClick={() => openReportWithCategory('Hazard')}
-                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5"
+                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
                           >
-                            <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                            <div className="w-9 h-9 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-slate-700">
                               <AlertTriangle className="w-4 h-4 text-amber-500" />
                             </div>
                             <span className="text-xs font-bold text-slate-800">
@@ -3009,9 +3057,9 @@ export default function MobileSafetyApp() {
 
                           <button
                             onClick={() => openReportWithCategory('Observation')}
-                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5"
+                            className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs hover:shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer"
                           >
-                            <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700">
+                            <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-slate-700">
                               <ShieldAlert className="w-4 h-4 text-emerald-600" />
                             </div>
                             <span className="text-xs font-bold text-slate-800">
@@ -3019,6 +3067,115 @@ export default function MobileSafetyApp() {
                             </span>
                           </button>
                         </div>
+                      </div>
+
+                      {/* RECENT REPORTED INCIDENTS FEED ON WORKER DASHBOARD */}
+                      <div className="space-y-3 pt-1">
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                            <FileText className="w-4 h-4 text-blue-600" />
+                            <span>Recent Reported Incidents</span>
+                          </h2>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateIncidentFilter('ALL');
+                              switchTab('incidents', 'ALL');
+                            }}
+                            className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <span>View All ({reportedIncidents.length})</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {reportedIncidents.length === 0 ? (
+                          <div className="bg-white rounded-2xl p-6 border border-slate-200/90 text-center space-y-2 shadow-2xs">
+                            <FileText className="w-8 h-8 text-slate-300 mx-auto" />
+                            <p className="text-xs font-bold text-slate-700">No Incidents Reported Yet</p>
+                            <p className="text-[11px] text-slate-400">Tap "Report Incident" above to log field safety observations.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {reportedIncidents.slice(0, 4).map(report => (
+                              <div
+                                key={report.id || report.report_number}
+                                className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3 hover:shadow-sm transition-all"
+                              >
+                                <div className="flex items-start justify-between gap-2.5">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full uppercase">
+                                        {report.category || report.report_type || 'Near Miss'}
+                                      </span>
+                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                        report.status === 'Action Required'
+                                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                          : report.status === 'Resolved' || report.status === 'VERIFIED'
+                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      }`}>
+                                        {report.status || 'Under Review'}
+                                      </span>
+                                    </div>
+                                    <h3 className="text-sm font-bold text-slate-900 mt-1 leading-snug">
+                                      {report.title || report.report_name}
+                                    </h3>
+                                  </div>
+
+                                  <div className="shrink-0 flex items-center pl-2">
+                                    <span className={`px-2.5 py-1 rounded-xl font-black text-[11px] uppercase tracking-wide flex items-center gap-1 font-mono border shadow-2xs ${
+                                      report.is_sif 
+                                        ? 'bg-rose-50 text-rose-600 border-rose-200' 
+                                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    }`}>
+                                      {report.is_sif ? '🚨 SIF' : '✅ NON-SIF'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {report.description && (
+                                  <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed bg-slate-50/70 p-2.5 rounded-xl border border-slate-100">
+                                    {report.description}
+                                  </p>
+                                )}
+
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                                  <div className="flex items-center gap-1 truncate font-medium">
+                                    <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                    <span className="truncate">
+                                      {report.incidentLocation?.address || report.facility_unit || report.location || 'Unit 1'}
+                                    </span>
+                                  </div>
+                                  <span className="font-mono text-[10px] text-slate-400 shrink-0 ml-2">
+                                    {report.created_at ? new Date(report.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+                                  </span>
+                                </div>
+
+                                <div className="pt-1 grid grid-cols-2 gap-2 border-t border-slate-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => setAiAnalysisModalData(report)}
+                                    className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-all"
+                                  >
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                                    <span>View Details</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setLocationViewIncident(report)}
+                                    className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-200 cursor-pointer transition-all"
+                                  >
+                                    <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>View Location</span>
+                                  </button>
+                                </div>
+
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
