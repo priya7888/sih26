@@ -28,7 +28,7 @@ jobs:
       - name: Accept Android SDK Licenses & Install Platform
         run: |
           yes | sdkmanager --licenses 2>/dev/null || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" || true
+          sdkmanager "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" || true
 
       - name: Install Node Dependencies
         run: npm install
@@ -48,24 +48,15 @@ jobs:
 
       - name: Build Android Debug APK
         run: |
-          set -o pipefail
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee ../build.log
-          echo "### Generated APKs:" >> $GITHUB_STEP_SUMMARY
-          find . -name "*.apk" >> $GITHUB_STEP_SUMMARY || true
-
-      - name: Show Build Log on Failure
-        if: failure()
-        run: |
-          echo "### Gradle Build Failure Log" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -n 80 build.log >> $GITHUB_STEP_SUMMARY || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          ./gradlew assembleDebug --no-daemon --stacktrace -PcompileSdkVersion=35 -PtargetSdkVersion=35 -PminSdkVersion=24
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: SafetyPulse-debug-apk
           path: android/app/build/outputs/apk/**/*.apk
           retention-days: 14
+
